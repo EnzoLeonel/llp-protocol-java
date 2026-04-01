@@ -30,7 +30,7 @@ Implementación en **Java 21** del protocolo **LLP (Lightweight Link Protocol)**
 
 ## 📦 Instalación
 
-### Usando Maven
+### Usando Maven (GitHub Packages)
 
 Agregá la dependencia en tu `pom.xml`:
 
@@ -42,21 +42,44 @@ Agregá la dependencia en tu `pom.xml`:
 </dependency>
 ```
 
-### Configuración de GitHub Packages
+---
 
-En tu archivo `~/.m2/settings.xml`:
+### ⚠️ Requisito: Configurar acceso a GitHub Packages
+
+Esta librería está publicada en GitHub Packages, por lo que es necesario autenticarse.
+
+#### 1. Crear un Personal Access Token
+
+En GitHub:
+
+* Ir a: Settings → Developer Settings → Personal Access Tokens
+* Crear un token con permisos:
+
+    * `read:packages`
+
+---
+
+#### 2. Configurar `settings.xml`
+
+Editar o crear:
+
+```id="settings"
+~/.m2/settings.xml
+```
 
 ```xml
 <servers>
     <server>
         <id>github</id>
-        <username>YOUR_USERNAME</username>
-        <password>YOUR_GITHUB_TOKEN</password>
+        <username>TU_USUARIO</username>
+        <password>TU_TOKEN</password>
     </server>
 </servers>
 ```
 
-Y en tu `pom.xml`:
+---
+
+#### 3. Agregar repositorio en `pom.xml`
 
 ```xml
 <repositories>
@@ -66,6 +89,16 @@ Y en tu `pom.xml`:
         <url>https://maven.pkg.github.com/EnzoLeonel/llp-protocol-java</url>
     </repository>
 </repositories>
+```
+
+---
+
+### ✅ Verificación
+
+Luego de configurar todo:
+
+```bash
+mvn clean install
 ```
 
 ---
