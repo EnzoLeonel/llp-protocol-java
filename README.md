@@ -3,6 +3,7 @@
 [![Maven Package](https://github.com/EnzoLeonel/llp-protocol-java/actions/workflows/maven-publish.yml/badge.svg)](https://github.com/EnzoLeonel/llp-protocol-java/actions/workflows/maven-publish.yml)
 [![Licencia: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Java 21](https://img.shields.io/badge/Java-21-blue)](https://www.oracle.com/java/)
+[![codecov](https://codecov.io/gh/EnzoLeonel/llp-protocol-java/branch/main/graph/badge.svg)](...)
 
 Implementación en **Java 21** del protocolo **LLP (Lightweight Link Protocol)** para comunicación robusta, eficiente y extensible entre microcontroladores y aplicaciones Java.
 
