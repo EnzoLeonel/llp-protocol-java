@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LLP Protocol Monitor</title>
+    <style>
+        :root {
+            --bg-color: #1e1e1e;
+            --panel-bg: #2d2d2d;
+            --text-main: #cccccc;
+            --rx-color: #4CAF50;
+            --tx-color: #2196F3;
+            --error-color: #F44336;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            box-sizing: border-box;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            border-bottom: 1px solid #444;
+            padding-bottom: 10px;
+        }
+
+        h2 { margin: 0; color: #fff; }
+
+        .status {
+            padding: 5px 10px;
+            border-radius: 4px;
+            background: #ff9800;
+            color: #000;
+            font-weight: bold;
+            font-size: 0.9em;
+        }
+        .status.connected { background: var(--rx-color); color: #fff; }
+        .status.disconnected { background: var(--error-color); color: #fff; }
+
+        .container {
+            display: flex;
+            gap: 20px;
+            flex: 1;
+            min-height: 0;
+        }
+
+        /* Nueva estructura para dividir la izquierda en 2 paneles apilados */
+        .left-column {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            min-width: 0;
+        }
+
+        .right-column {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+        }
+
+        .panel {
+            flex: 1;
+            background-color: var(--panel-bg);
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        .panel-header {
+            background-color: #333;
+            padding: 10px 15px;
+            font-weight: bold;
+            letter-spacing: 1px;
+            border-bottom: 1px solid #444;
+            display: flex;
+            justify-content: space-between; /* Para alinear el checkbox a la derecha */
+            align-items: center;
+        }
+
+        /* Estilos del Toggle */
+        .toggle-container {
+            font-size: 0.85em;
+            font-weight: normal;
+            color: #aaa;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            cursor: pointer;
+        }
+
+        .console-output {
+            flex: 1;
+            padding: 10px;
+            overflow-y: auto;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.5;
+            word-wrap: break-word; /* Evita que una línea muy larga rompa el div */
+        }
+
+        .log-line { border-bottom: 1px dashed #444; padding: 4px 0; min-height: 20px; }
+        .log-line:hover { background-color: #3a3a3a; }
+
+        .dir-rx { color: var(--rx-color); }
+        .dir-tx { color: var(--tx-color); }
+
+        .ts { color: #888; font-size: 0.85em; margin-right: 5px; }
+        .frame-len { color: #e1bee7; }
+        .frame-payload {
+            margin-left: 25px;
+            margin-top: 4px;
+            padding-left: 10px;
+            border-left: 2px solid #555;
+            color: #aaa;
+        }
+        .raw-hex { color: #e6db74; }
+        .raw-ascii { color: #ffb86c; font-weight: bold; }
+
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: var(--panel-bg); }
+        ::-webkit-scrollbar-thumb { background: #555; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #777; }
+    </style>
+</head>
+<body>
+
+<header>
+    <h2>LLP Monitor</h2>
+    <div id="connection-status" class="status">Connecting...</div>
+</header>
+
+<div class="container">
+    <div class="left-column">
+        <div class="panel">
+            <div class="panel-header">
+                RAW STREAM (HEX)
+                <label class="toggle-container">
+                    <input type="checkbox" id="nl-toggle" checked> Delimit by \n
+                </label>
+            </div>
+            <div id="raw-hex" class="console-output"></div>
+        </div>
+
+        <div class="panel">
+            <div class="panel-header">RAW STREAM (ASCII UTF-8)</div>
+            <div id="raw-ascii" class="console-output"></div>
+        </div>
+    </div>
+
+    <div class="right-column panel">
+        <div class="panel-header">PARSED FRAMES</div>
+        <div id="frames" class="console-output"></div>
+    </div>
+</div>
+
+<script>
+    const rawHexContainer = document.getElementById("raw-hex");
+    const rawAsciiContainer = document.getElementById("raw-ascii");
+    const framesContainer = document.getElementById("frames");
+    const statusBadge = document.getElementById("connection-status");
+    const nlToggle = document.getElementById("nl-toggle");
+
+    const MAX_LINES = 100;
+    const MAX_BYTES_PER_LINE = 64; // Protección de memoria: rompe la línea si se hace inmensa
+
+    let currentHexLine = null;
+    let currentAsciiLine = null;
+
+    const evtSource = new EventSource("/events");
+
+    evtSource.onopen = () => {
+        statusBadge.textContent = "Connected";
+        statusBadge.className = "status connected";
+    };
+
+    evtSource.onerror = () => {
+        statusBadge.textContent = "Disconnected";
+        statusBadge.className = "status disconnected";
+    };
+
+    // Convierte Hex a ASCII seguro
+    function hexToPrintableAscii(hexStr) {
+        if (!hexStr) return "";
+        let asciiStr = "";
+        for (let i = 0; i < hexStr.length; i += 2) {
+            const byteCode = parseInt(hexStr.substring(i, i + 2), 16);
+            if (byteCode >= 32 && byteCode <= 126) {
+                asciiStr += String.fromCharCode(byteCode);
+            } else {
+                asciiStr += ".";
+            }
+        }
+        return asciiStr;
+    }
+
+    function formatTime(ts) {
+        if (!ts) return "";
+        const date = new Date(ts);
+        return date.getHours().toString().padStart(2, '0') + ":" +
+            date.getMinutes().toString().padStart(2, '0') + ":" +
+            date.getSeconds().toString().padStart(2, '0') + "." +
+            date.getMilliseconds().toString().padStart(3, '0');
+    }
+
+    // --- LÓGICA DE FLUJO RAW ---
+    function appendRawByte(data) {
+        const hexStr = (data.hex || "").toUpperCase().padStart(2, '0');
+        const delimit = nlToggle.checked;
+        const isNewline = (hexStr === "0A");
+        const dirClass = data.dir && data.dir.toUpperCase() === 'RX' ? 'dir-rx' : 'dir-tx';
+
+        // 1. Crear contenedores de línea si no existen
+        if (!currentHexLine) {
+            currentHexLine = document.createElement("div");
+            currentHexLine.className = "log-line";
+            rawHexContainer.appendChild(currentHexLine);
+        }
+        if (!currentAsciiLine) {
+            currentAsciiLine = document.createElement("div");
+            currentAsciiLine.className = "log-line";
+            rawAsciiContainer.appendChild(currentAsciiLine);
+        }
+
+        // 2. Agregar el byte al panel HEX
+        const hexSpan = document.createElement("span");
+        hexSpan.className = dirClass;
+        hexSpan.textContent = hexStr + " ";
+        currentHexLine.appendChild(hexSpan);
+
+        // 3. Agregar el caracter al panel ASCII
+        const asciiSpan = document.createElement("span");
+        asciiSpan.className = dirClass;
+        const byteCode = parseInt(hexStr, 16);
+        if (byteCode >= 32 && byteCode <= 126) {
+            asciiSpan.textContent = String.fromCharCode(byteCode);
+        } else {
+            asciiSpan.textContent = ".";
+        }
+        currentAsciiLine.appendChild(asciiSpan);
+
+        // 4. Evaluar si debemos romper la línea
+        // Rompemos si recibimos 0x0A (y el toggle está activo) o por protección de límite visual
+        if ((delimit && isNewline) || currentHexLine.childNodes.length > MAX_BYTES_PER_LINE) {
+            currentHexLine = null;
+            currentAsciiLine = null;
+
+            // Limpiar basura antigua
+            while (rawHexContainer.children.length > MAX_LINES) rawHexContainer.removeChild(rawHexContainer.firstChild);
+            while (rawAsciiContainer.children.length > MAX_LINES) rawAsciiContainer.removeChild(rawAsciiContainer.firstChild);
+        }
+
+        // 5. Scroll automático
+        rawHexContainer.scrollTop = rawHexContainer.scrollHeight;
+        rawAsciiContainer.scrollTop = rawAsciiContainer.scrollHeight;
+    }
+
+    // --- LÓGICA DE TRAMAS PROCESADAS ---
+    function appendFrame(data) {
+        const timeStr = formatTime(data.ts);
+        const asciiPayload = hexToPrintableAscii(data.payload);
+        const dirClass = data.dir && data.dir.toUpperCase() === 'RX' ? 'dir-rx' : 'dir-tx';
+        const dirIcon = data.dir && data.dir.toUpperCase() === 'RX' ? '↓ RX' : '↑ TX';
+
+        const html = `
+                <div>
+                    <span class="${dirClass}">[${dirIcon}]</span>
+                    <span class="ts">[${timeStr}]</span>
+                    ID: <span class="frame-id">${data.id}</span> |
+                    TYPE: <span class="frame-type">${data.frameType}</span> |
+                    LEN: <span class="frame-len">${data.len}</span>
+                </div>
+                <div class="frame-payload">
+                    HEX:   <span class="raw-hex">${data.payload || ""}</span><br>
+                    ASCII: <span class="raw-ascii">${asciiPayload || "-"}</span>
+                </div>
+            `;
+
+        const div = document.createElement("div");
+        div.className = "log-line";
+        div.innerHTML = html;
+
+        framesContainer.appendChild(div);
+
+        while (framesContainer.children.length > MAX_LINES) {
+            framesContainer.removeChild(framesContainer.firstChild);
+        }
+
+        framesContainer.scrollTop = framesContainer.scrollHeight;
+    }
+
+    evtSource.onmessage = function(event) {
+        try {
+            const data = JSON.parse(event.data);
+            if (data.type === "raw") {
+                appendRawByte(data);
+            } else if (data.type === "frame") {
+                appendFrame(data);
+            }
+        } catch (e) {
+            console.error("Error parsing SSE data:", e);
+        }
+    };
+</script>
+
+</body>
+</html>

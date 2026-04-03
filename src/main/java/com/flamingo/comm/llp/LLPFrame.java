@@ -13,17 +13,19 @@ public class LLPFrame {
 
     private final byte type;
     private final int id;
+    private final byte version;
     private final byte[] payload;
     private final int crc;
     private final long timestamp;
 
-    public LLPFrame(byte type, int id, byte[] payload, int crc) {
-        this(type, id, payload, crc, System.currentTimeMillis());
+    public LLPFrame(byte type, int id, byte version, byte[] payload, int crc) {
+        this(type, id, version, payload, crc, System.currentTimeMillis());
     }
 
-    public LLPFrame(byte type, int id, byte[] payload, int crc, long timestamp) {
+    public LLPFrame(byte type, int id, byte version, byte[] payload, int crc, long timestamp) {
         this.type = type;
         this.id = id;
+        this.version = version;
         this.payload = payload != null ? payload.clone() : new byte[0];
         this.crc = crc;
         this.timestamp = timestamp;
@@ -39,6 +41,10 @@ public class LLPFrame {
 
     public int id() {
         return id;
+    }
+
+    public byte version() {
+        return version;
     }
 
     public byte[] payload() {
@@ -60,8 +66,8 @@ public class LLPFrame {
     @Override
     public String toString() {
         return String.format(
-                "LLPFrame{type=0x%02X, id=%d, payloadLen=%d, crc=0x%04X, timestamp=%d}",
-                type, id, payload.length, crc, timestamp
+                "LLPFrame{type=0x%02X, id=%d, version=0x%02X, payloadLen=%d, crc=0x%04X, timestamp=%d}",
+                type, id, version, payload.length, crc, timestamp
         );
     }
 
@@ -73,12 +79,13 @@ public class LLPFrame {
         LLPFrame frame = (LLPFrame) o;
         return type == frame.type &&
                 id == frame.id &&
+                version == frame.version &&
                 crc == frame.crc &&
                 Arrays.equals(payload, frame.payload);
     }
 
     @Override
     public int hashCode() {
-        return java.util.Objects.hash(type, id, crc, Arrays.hashCode(payload));
+        return java.util.Objects.hash(type, id, version, crc, Arrays.hashCode(payload));
     }
 }

@@ -3,6 +3,8 @@ package com.flamingo.comm.llp;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.Random;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 class LLPParserTest {
@@ -96,9 +98,9 @@ class LLPParserTest {
             }
         }
 
-        assertEquals(parser.getStatistics().getFramesOk(), 3);
-        assertEquals(parser.getStatistics().getTotalFrames(), 3);
-        assertEquals(parser.getStatistics().getSuccessRate(), 100.0);
+        assertEquals(3, parser.getStatistics().getFramesOk());
+        assertEquals(3, parser.getStatistics().getTotalFrames());
+        assertEquals(100.0, parser.getStatistics().getSuccessRate());
     }
 
     @Test
@@ -198,5 +200,122 @@ class LLPParserTest {
 
         assertNotNull(result);
         assertEquals(payload.length, result.payloadLength());
+    }
+
+    @Test
+    void testParseStuffedPayload() {
+        byte[] payload = new byte[]{
+                0x11, (byte) 0xAA, 0x22, (byte) 0xAA, 0x33
+        };
+
+        byte[] frame = LLP.buildData(1, payload);
+
+        LLPFrame result = null;
+
+        for (byte b : frame) {
+            LLPFrame f = parser.processByte(b);
+            if (f != null) result = f;
+        }
+
+        assertNotNull(result);
+        assertArrayEquals(payload, result.payload());
+    }
+
+    @Test
+    void testStuffingAcrossEntireFrame() {
+        byte type = (byte) 0xAA; // force stuffing
+        int id = 0xAA55;
+        byte[] payload = new byte[]{(byte) 0xAA, (byte) 0xAA};
+
+        byte[] frame = LLP.buildFrame(type, id, payload);
+
+        LLPFrame result = null;
+
+        for (byte b : frame) {
+            LLPFrame f = parser.processByte(b);
+            if (f != null) result = f;
+        }
+
+        assertNotNull(result);
+        assertEquals(type, result.type());
+        assertEquals(id, result.id());
+        assertArrayEquals(payload, result.payload());
+    }
+
+    @Test
+    void testDoubleAASequence() {
+        byte[] payload = new byte[]{
+                (byte) 0xAA, (byte) 0xAA, (byte) 0xAA
+        };
+
+        byte[] frame = LLP.buildData(1, payload);
+
+        LLPFrame result = null;
+
+        for (byte b : frame) {
+            LLPFrame f = parser.processByte(b);
+            if (f != null) result = f;
+        }
+
+        assertNotNull(result);
+        assertArrayEquals(payload, result.payload());
+    }
+
+    @Test
+    void testFakeHeaderInsidePayload() {
+        byte[] payload = new byte[]{
+                0x10,
+                (byte) 0xAA, 0x55, // It looks like a header, but it must be escaped
+                0x20
+        };
+
+        byte[] frame = LLP.buildData(1, payload);
+
+        LLPFrame result = null;
+
+        for (byte b : frame) {
+            LLPFrame f = parser.processByte(b);
+            if (f != null) result = f;
+        }
+
+        assertNotNull(result);
+        assertArrayEquals(payload, result.payload());
+    }
+
+    @Test
+    void testInvalidEscapeSequence() {
+        byte[] frame = LLP.buildPing(1);
+
+        // We injected an invalid sequence: AA 99
+        frame[5] = (byte) 0xAA;
+        frame[6] = (byte) 0x99;
+
+        for (byte b : frame) {
+            parser.processByte(b);
+        }
+
+        assertTrue(parser.getStatistics().getFramesError() > 0);
+    }
+
+    @Test
+    void testRandomFramesWithStuffing() {
+        Random random = new Random();
+
+        for (int i = 0; i < 1000; i++) {
+            byte[] payload = new byte[50];
+            random.nextBytes(payload);
+
+            byte[] frame = LLP.buildData(i, payload);
+
+            LLPFrame result = null;
+
+            for (byte b : frame) {
+                LLPFrame f = parser.processByte(b);
+                if (f != null) result = f;
+            }
+
+            assertNotNull(result);
+            assertArrayEquals(payload, result.payload());
+        }
     }
 }

@@ -1,0 +1,47 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>com.flamingo.llp.test</groupId>
+  <artifactId>llp-serial-test</artifactId>
+  <packaging>jar</packaging>
+  <version>1.0-SNAPSHOT</version>
+  <name>llp-serial-test</name>
+  <url>http://maven.apache.org</url>
+  <properties>
+    <maven.compiler.source>21</maven.compiler.source>
+    <maven.compiler.target>21</maven.compiler.target>
+    <!-- For Java 9+, use the release property instead -->
+    <maven.compiler.release>21</maven.compiler.release>
+  </properties>
+  <dependencies>
+
+    <!-- llp-protocol library -->
+    <dependency>
+      <groupId>com.flamingo</groupId>
+      <artifactId>llp-protocol</artifactId>
+      <version>1.0.0</version>
+    </dependency>
+
+    <!-- Serial (recomiendo jSerialComm) -->
+    <dependency>
+      <groupId>com.fazecast</groupId>
+      <artifactId>jSerialComm</artifactId>
+      <version>2.10.4</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-simple</artifactId>
+      <version>2.0.7</version>
+    </dependency>
+
+  </dependencies>
+
+  <repositories>
+    <repository>
+      <id>github</id>
+      <name>GitHub Packages</name>
+      <url>https://maven.pkg.github.com/EnzoLeonel/llp-protocol-java</url>
+    </repository>
+  </repositories>
+</project>

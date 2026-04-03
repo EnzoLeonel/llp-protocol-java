@@ -12,7 +12,8 @@ public enum LLPErrorCode {
     PAYLOAD_LEN_INVALID((byte) 0x03, "Payload length exceeds maximum"),
     TIMEOUT((byte) 0x04, "Frame timeout - incomplete frame"),
     SYNC_ERROR((byte) 0x05, "Synchronization error"),
-    BUFFER_FULL((byte) 0x06, "Buffer overflow");
+    BUFFER_FULL((byte) 0x06, "Buffer overflow"),
+    UNSUPPORTED_VERSION((byte) 0x07, "Unknown or unsupported version");
 
     private final byte code;
     private final String description;

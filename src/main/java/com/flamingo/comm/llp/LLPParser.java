@@ -15,19 +15,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  *
  * <p>This parser processes incoming data byte-by-byte and reconstructs valid LLP frames.
  * It is designed to work with unreliable or noisy transport layers (e.g., RF, UART, TCP streams),
- * providing resynchronization, timeout handling, and CRC validation.</p>
- *
- * <p>Typical usage:</p>
- * <pre>
- *     LLPParser parser = new LLPParser();
- *     LLPFrame frame = parser.processByte(byte);
- *     if (frame != null) {
- *         // handle frame
- *     }
- * </pre>
- *
- * <p>This class is NOT fully thread-safe. It is expected to be used from a single
- * reader thread. However, listeners and frame queue are safe for concurrent access.</p>
+ * providing resynchronization, timeout handling, CRC validation, and Byte Stuffing.</p>
  */
 public class LLPParser {
     private static final Logger logger = LoggerFactory.getLogger(LLPParser.class);
@@ -35,14 +23,18 @@ public class LLPParser {
     private static final byte MAGIC_1 = (byte) 0xAA;
     private static final byte MAGIC_2 = (byte) 0x55;
     private static final long DEFAULT_TIMEOUT_MS = 2000;
-    private final byte[] headerBuf = new byte[7];
+
+    private final byte[] headerBuf = new byte[8];
     private final byte[] payload;
     private final long timeoutMs;
     private final Queue<LLPFrame> frameQueue = new ConcurrentLinkedQueue<>();
     private final Statistics statistics = new Statistics();
     // Listeners
     private final Queue<LLPFrameListener> listeners = new ConcurrentLinkedQueue<>();
+
     private State state = State.WAIT_MAGIC1;
+    private boolean escapePending = false;
+
     private int payloadLen = 0;
     private int payloadIdx = 0;
     private int crcReceived = 0;
@@ -85,10 +77,7 @@ public class LLPParser {
     }
 
     /**
-     * Processes a single byte from the input stream.
-     *
-     * <p>If a complete and valid frame is reconstructed, it is returned.
-     * Otherwise, {@code null} is returned.</p>
+     * Processes a single byte from the input stream, resolving byte stuffing transparently.
      *
      * @param b incoming byte
      * @return a complete {@link LLPFrame} or {@code null} if not complete
@@ -100,12 +89,57 @@ public class LLPParser {
                 logger.warn("Frame timeout - resetting parser");
                 statistics.recordTimeout();
                 reset();
-                notifyError((byte) 0x04); // LLP_ERR_TIMEOUT
+                notifyError(LLPErrorCode.TIMEOUT);
+
+                // Allow a magic byte to restart the sequence immediately
+                if (b == MAGIC_1) {
+                    state = State.WAIT_MAGIC2;
+                }
                 return null;
             }
         }
         lastByteTime = System.currentTimeMillis();
 
+        // ================= ESCAPE / STUFFING HANDLING =================
+        // Only evaluate escape sequences if we are inside a frame
+        if (state != State.WAIT_MAGIC1 && state != State.WAIT_MAGIC2) {
+            if (escapePending) {
+                escapePending = false;
+
+                if (b == MAGIC_2) {
+                    // OVERLAPPED FRAME DETECTED! (0xAA 0x55 sequence found in data)
+                    logger.warn("Overlapped frame detected, aborting current and syncing new frame");
+                    statistics.recordError();
+                    notifyError(LLPErrorCode.SYNC_ERROR);
+
+                    crcCalculated = 0xFFFF;
+                    crcCalculated = CRC16CCITT.updateCRC(crcCalculated, MAGIC_1);
+                    crcCalculated = CRC16CCITT.updateCRC(crcCalculated, MAGIC_2);
+                    headerBuf[0] = MAGIC_1;
+                    headerBuf[1] = MAGIC_2;
+                    state = State.READ_TYPE;
+                    return null; // Consumed as MAGIC_2
+
+                } else if (b == 0x00) {
+                    // Escaped data byte recovered. Restore to MAGIC_1.
+                    b = MAGIC_1;
+                } else {
+                    // Invalid sequence
+                    logger.error("Invalid sync sequence: 0xAA followed by 0x{}", Integer.toHexString(b & 0xFF));
+                    statistics.recordError();
+                    reset();
+                    notifyError(LLPErrorCode.SYNC_ERROR);
+                    return null;
+                }
+            } else if (b == MAGIC_1) {
+                // Suspends processing to wait for the next byte to clarify the sequence
+                escapePending = true;
+                return null;
+            }
+        }
+        // ==============================================================
+
+        // Standard State Machine (Operates on unstuffed bytes)
         switch (state) {
             case WAIT_MAGIC1:
                 if (b == MAGIC_1) {
@@ -120,7 +154,7 @@ public class LLPParser {
                     crcCalculated = 0xFFFF;
                     crcCalculated = CRC16CCITT.updateCRC(crcCalculated, MAGIC_1);
                     crcCalculated = CRC16CCITT.updateCRC(crcCalculated, MAGIC_2);
-                    state = State.READ_TYPE;
+                    state = State.READ_VERSION;
                 } else if (b == MAGIC_1) {
                     // RF robustness: another MAGIC_1 received
                     state = State.WAIT_MAGIC2;
@@ -129,41 +163,53 @@ public class LLPParser {
                 }
                 break;
 
-            case READ_TYPE:
+            case READ_VERSION:
                 headerBuf[2] = b;
+                crcCalculated = CRC16CCITT.updateCRC(crcCalculated, b);
+
+                if (b != LLP.PROTOCOL_VERSION) {
+                    logger.warn("Different protocol version: received={}, expected={}",
+                            b, LLP.PROTOCOL_VERSION);
+                }
+
+                state = State.READ_TYPE;
+                break;
+
+            case READ_TYPE:
+                headerBuf[3] = b;
                 crcCalculated = CRC16CCITT.updateCRC(crcCalculated, b);
                 state = State.READ_ID_L;
                 break;
 
             case READ_ID_L:
-                headerBuf[3] = b;
+                headerBuf[4] = b;
                 crcCalculated = CRC16CCITT.updateCRC(crcCalculated, b);
                 state = State.READ_ID_H;
                 break;
 
             case READ_ID_H:
-                headerBuf[4] = b;
+                headerBuf[5] = b;
                 crcCalculated = CRC16CCITT.updateCRC(crcCalculated, b);
                 state = State.READ_LEN_L;
                 break;
 
             case READ_LEN_L:
-                headerBuf[5] = b;
+                headerBuf[6] = b;
                 crcCalculated = CRC16CCITT.updateCRC(crcCalculated, b);
                 state = State.READ_LEN_H;
                 break;
 
             case READ_LEN_H:
-                headerBuf[6] = b;
+                headerBuf[7] = b;
                 crcCalculated = CRC16CCITT.updateCRC(crcCalculated, b);
 
-                payloadLen = (headerBuf[5] & 0xFF) | ((headerBuf[6] & 0xFF) << 8);
+                payloadLen = (headerBuf[6] & 0xFF) | ((headerBuf[7] & 0xFF) << 8);
 
                 if (payloadLen > payload.length) {
                     logger.error("Payload length {} exceeds maximum {}", payloadLen, payload.length);
                     statistics.recordError();
                     reset();
-                    notifyError((byte) 0x03); // LLP_ERR_PAYLOAD_LEN
+                    notifyError(LLPErrorCode.PAYLOAD_LEN_INVALID);
                     return null;
                 }
 
@@ -200,7 +246,7 @@ public class LLPParser {
                             Integer.toHexString(crcCalculated));
                     statistics.recordError();
                     reset();
-                    notifyError((byte) 0x01); // LLP_ERR_CHECKSUM
+                    notifyError(LLPErrorCode.CHECKSUM_INVALID);
                     return null;
                 }
 
@@ -226,12 +272,13 @@ public class LLPParser {
     }
 
     private LLPFrame createFrame() {
-        byte type = headerBuf[2];
-        int id = (headerBuf[3] & 0xFF) | ((headerBuf[4] & 0xFF) << 8);
+        byte version = headerBuf[2];
+        byte type = headerBuf[3];
+        int id = (headerBuf[4] & 0xFF) | ((headerBuf[5] & 0xFF) << 8);
         byte[] payloadCopy = new byte[payloadLen];
         System.arraycopy(payload, 0, payloadCopy, 0, payloadLen);
 
-        return new LLPFrame(type, id, payloadCopy, crcCalculated);
+        return new LLPFrame(type, id, version, payloadCopy, crcCalculated);
     }
 
     /**
@@ -241,6 +288,7 @@ public class LLPParser {
         state = State.WAIT_MAGIC1;
         payloadIdx = 0;
         crcCalculated = 0xFFFF;
+        escapePending = false; // Reset escape flag
     }
 
     /**
@@ -269,7 +317,7 @@ public class LLPParser {
         }
     }
 
-    private void notifyError(byte errorCode) {
+    private void notifyError(LLPErrorCode errorCode) {
         for (LLPFrameListener listener : listeners) {
             try {
                 listener.onFrameError(errorCode);
@@ -278,6 +326,8 @@ public class LLPParser {
             }
         }
     }
+
+    // ============= GETTERS =============
 
     /**
      * Returns parsed frames queue.
@@ -293,10 +343,8 @@ public class LLPParser {
         return statistics;
     }
 
-    // ============= GETTERS =============
-
     private enum State {
-        WAIT_MAGIC1, WAIT_MAGIC2, READ_TYPE, READ_ID_L, READ_ID_H,
+        WAIT_MAGIC1, WAIT_MAGIC2, READ_VERSION, READ_TYPE, READ_ID_L, READ_ID_H,
         READ_LEN_L, READ_LEN_H, READ_PAYLOAD, READ_CRC_L, READ_CRC_H
     }
 
@@ -313,6 +361,6 @@ public class LLPParser {
         /**
          * Called when a frame error occurs.
          */
-        void onFrameError(byte errorCode);
+        void onFrameError(LLPErrorCode errorCode);
     }
 }
