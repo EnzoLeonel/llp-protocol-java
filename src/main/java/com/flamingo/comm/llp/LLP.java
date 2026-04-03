@@ -24,6 +24,7 @@ package com.flamingo.comm.llp;
  * <p>This class is a utility facade and should not be instantiated.</p>
  */
 public final class LLP {
+    public static final byte PROTOCOL_VERSION = 0x02;
 
     /**
      * Private constructor to prevent instantiation.

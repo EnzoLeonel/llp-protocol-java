@@ -38,7 +38,7 @@ Agregá la dependencia en tu `pom.xml`:
 <dependency>
     <groupId>com.flamingo</groupId>
     <artifactId>llp-protocol</artifactId>
-    <version>1.0.0</version>
+    <version>2.0.0</version>
 </dependency>
 ```
 
@@ -118,8 +118,8 @@ parser.addListener(new LLPParser.LLPFrameListener() {
     }
 
     @Override
-    public void onFrameError(byte errorCode) {
-        System.out.println("Error: 0x" + Integer.toHexString(errorCode));
+    public void onFrameError(LLPErrorCode errorCode) {
+        System.out.println("Error: 0x" + Integer.toHexString(errorCode.code()));
     }
 });
 
@@ -133,7 +133,7 @@ while ((data = in.read()) != -1) {
         if (frame != null) {
             // Procesar frame completo
         }
-    } catch (LLPException e) {
+    } catch (Exception e) {
         System.err.println("Error: " + e.getMessage());
     }
 }
@@ -148,14 +148,15 @@ outputStream.write(frame);
 
 ## 📦 Estructura del Frame
 
-| Campo   | Tamaño  | Descripción             |
-| ------- | ------- | ----------------------- |
-| Magic   | 2 bytes | 0xAA 0x55               |
-| Type    | 1 byte  | Tipo de mensaje         |
-| ID      | 2 bytes | ID de transacción (LE)  |
-| Length  | 2 bytes | Tamaño del payload (LE) |
-| Payload | N bytes | Datos                   |
-| CRC16   | 2 bytes | CRC-CCITT (LE)          |
+| Campo   | Tamaño  | Descripción               |
+|---------|---------|---------------------------|
+| Magic   | 2 bytes | 0xAA 0x55                 |
+| Version | 1 bytes | Version del protocolo LLP |
+| Type    | 1 byte  | Tipo de mensaje           |
+| ID      | 2 bytes | ID de transacción (LE)    |
+| Length  | 2 bytes | Tamaño del payload (LE)   |
+| Payload | N bytes | Datos                     |
+| CRC16   | 2 bytes | CRC-CCITT (LE)            |
 
 ---
 

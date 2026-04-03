@@ -4,6 +4,7 @@ import com.flamingo.comm.llp.crc.CRC16CCITT;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
@@ -15,7 +16,7 @@ import java.util.Arrays;
  *
  * <p>Frame format:</p>
  * <pre>
- * [MAGIC1][MAGIC2][TYPE][ID_L][ID_H][LEN_L][LEN_H][PAYLOAD...][CRC_L][CRC_H]
+ * [MAGIC1][MAGIC2][PROTOCOL_VERSION][TYPE][ID_L][ID_H][LEN_L][LEN_H][PAYLOAD...][CRC_L][CRC_H]
  * </pre>
  *
  * <p>The CRC16-CCITT is calculated over all bytes except the CRC itself.</p>
@@ -65,12 +66,16 @@ public class LLPFrameBuilder {
             );
         }
 
-        byte[] frame = new byte[7 + payload.length + 2];
+        final int MAX_FRAME_SIZE = 8 + payload.length + 2;
+        byte[] frame = new byte[MAX_FRAME_SIZE];
         int idx = 0;
 
         // Magic
         frame[idx++] = MAGIC_1;
         frame[idx++] = MAGIC_2;
+
+        // Version
+        frame[idx++] = LLP.PROTOCOL_VERSION;
 
         // Type
         frame[idx++] = type;
@@ -98,7 +103,34 @@ public class LLPFrameBuilder {
         logger.debug("Built frame: type=0x{}, id={}, payload_len={}, total_len={}",
                 Integer.toHexString(type & 0xFF), id, payload.length, frame.length);
 
-        return frame;
+        return stuffFrame(frame);
+    }
+
+    /**
+     * Stuff bytes into a completed frame, excluding the header.
+     * Add one byte to ensure the header is not included within the frame.
+     *
+     * @param frame original frame without any processing
+     * @return Stuffed frame
+     */
+    private static byte[] stuffFrame(byte[] frame) {
+        // After the byte stuff, in the worst-case scenario, it will take up twice the size of the actual frame
+        ByteArrayOutputStream buffer = new ByteArrayOutputStream(frame.length * 2);
+
+        // Copy MAGIC as-is
+        buffer.write(frame, 0, 2);
+
+        // Stuff everything else
+        for (int i = 2; i < frame.length; i++) {
+            byte b = frame[i];
+            buffer.write(b);
+
+            if (b == MAGIC_1) {
+                buffer.write(0x00);
+            }
+        }
+
+        return buffer.toByteArray();
     }
 
     /**
@@ -176,7 +208,7 @@ public class LLPFrameBuilder {
             int crc = (data[data.length - 2] & 0xFF) |
                     ((data[data.length - 1] & 0xFF) << 8);
 
-            return new LLPFrame(type, id, payload, crc);
+            return new LLPFrame(type, id, LLP.PROTOCOL_VERSION, payload, crc);
         }
     }
 }
