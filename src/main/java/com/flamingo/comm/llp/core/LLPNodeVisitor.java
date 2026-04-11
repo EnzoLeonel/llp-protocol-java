@@ -1,5 +1,7 @@
 package com.flamingo.comm.llp.core;
 
+import com.flamingo.comm.llp.spi.LLPNode;
+
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Consumer;

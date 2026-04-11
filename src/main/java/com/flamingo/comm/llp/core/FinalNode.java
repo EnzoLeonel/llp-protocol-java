@@ -1,9 +1,10 @@
 package com.flamingo.comm.llp.core;
 
+import com.flamingo.comm.llp.spi.LLPNode;
+
+import java.util.Arrays;
 import java.util.HexFormat;
 import java.util.Locale;
-import java.util.Optional;
-import java.util.Arrays;
 
 /**
  * Final LLP node (Layer ID = 0).
@@ -29,7 +30,7 @@ public final class FinalNode implements LLPNode {
      *
      * @param payload raw payload (nullable → treated as empty)
      */
-    public FinalNode(byte[] payload) {
+    FinalNode(byte[] payload) {
         this.payload = (payload == null || payload.length == 0)
                 ? EMPTY_ARRAY
                 : Arrays.copyOf(payload, payload.length);
@@ -40,28 +41,23 @@ public final class FinalNode implements LLPNode {
         return ID;
     }
 
-    @Override
-    public Optional<LLPNode> getInnerNode() {
-        return Optional.empty();
-    }
-
-    @Override
-    public boolean isSkippable() {
-        return true; // Always skippable by definition
-    }
-
-    public byte[] getPayload() {
-        return payload;
-    }
-
     /**
      * Factory method to reuse EMPTY instance when possible.
      */
-    public static FinalNode of(byte[] payload) {
+    static FinalNode of(byte[] payload) {
         if (payload == null || payload.length == 0) {
             return EMPTY;
         }
         return new FinalNode(payload);
+    }
+
+    /**
+     * Raw payload sent by the sender
+     *
+     * @return an array of bytes containing the raw payload sent by the sender, or an empty array
+     */
+    public byte[] getPayload() {
+        return payload;
     }
 
     @Override

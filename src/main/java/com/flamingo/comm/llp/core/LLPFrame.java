@@ -1,10 +1,8 @@
 package com.flamingo.comm.llp.core;
 
-import java.util.ArrayList;
-import java.util.List;
+import com.flamingo.comm.llp.spi.LLPNode;
+
 import java.util.Objects;
-import java.util.Optional;
-import java.util.function.Consumer;
 
 /**
  * Represents a fully received and validated LLP frame.
@@ -16,29 +14,29 @@ import java.util.function.Consumer;
  */
 public final class LLPFrame {
 
-    private final LLPNode content;
+    private final LLPNodeChain nodeChain;
     private final int crc;
     private final long timestamp;
 
     /**
      * Creates a new frame with the current system timestamp.
      *
-     * @param content root node (outermost layer)
+     * @param nodeChain nested nodes
      * @param crc     calculated CRC value
      */
-    LLPFrame(LLPNode content, int crc) {
-        this(content, crc, System.currentTimeMillis());
+    LLPFrame(LLPNodeChain nodeChain, int crc) {
+        this(nodeChain, crc, System.currentTimeMillis());
     }
 
     /**
      * Creates a new frame.
      *
-     * @param content   root node (outermost layer)
+     * @param nodeChain   nested nodes
      * @param crc       calculated CRC value
      * @param timestamp creation timestamp (milliseconds)
      */
-    LLPFrame(LLPNode content, int crc, long timestamp) {
-        this.content = (content != null) ? content : FinalNode.EMPTY;
+    LLPFrame(LLPNodeChain nodeChain, int crc, long timestamp) {
+        this.nodeChain = nodeChain;
         this.crc = crc;
         this.timestamp = timestamp;
     }
@@ -57,91 +55,8 @@ public final class LLPFrame {
         return timestamp;
     }
 
-    /**
-     * Finds the first node of the given type in the frame hierarchy.
-     *
-     * @param type node class
-     * @param <T>  node type
-     * @return optional node instance
-     */
-    public <T extends LLPNode> Optional<T> getNode(Class<T> type) {
-        LLPNode current = this.content;
-
-        while (current != null) {
-            if (type.isInstance(current)) {
-                return Optional.of(type.cast(current));
-            }
-            current = current.getInnerNode().orElse(null);
-        }
-
-        return Optional.empty();
-    }
-
-    /**
-     * Finds the first node with the given layer ID.
-     *
-     * @param id layer identifier
-     * @return optional node
-     */
-    public Optional<LLPNode> getNode(int id) {
-        LLPNode current = this.content;
-
-        while (current != null) {
-            if (current.getId() == id) {
-                return Optional.of(current);
-            }
-            current = current.getInnerNode().orElse(null);
-        }
-
-        return Optional.empty();
-    }
-
-    /**
-     * Returns the deepest (last) node in the hierarchy.
-     *
-     * @return last node
-     */
-    public LLPNode getDeepestNode() {
-        LLPNode current = this.content;
-
-        while (current.getInnerNode().isPresent()) {
-            current = current.getInnerNode().get();
-        }
-
-        return current;
-    }
-
-    /**
-     * Returns all nodes in traversal order (outer → inner).
-     *
-     * @return immutable list of nodes
-     */
-    public List<LLPNode> getNodes() {
-        List<LLPNode> nodes = new ArrayList<>();
-        LLPNode current = this.content;
-
-        while (current != null) {
-            nodes.add(current);
-            current = current.getInnerNode().orElse(null);
-        }
-
-        return List.copyOf(nodes);
-    }
-
-    /**
-     * Traverses all nodes using a visitor.
-     *
-     * @param consumer visitor builder
-     */
-    public void visitNodes(Consumer<LLPNodeVisitor> consumer) {
-        LLPNodeVisitor visitor = new LLPNodeVisitor();
-        consumer.accept(visitor);
-        LLPNode current = content;
-
-        while (current != null) {
-            visitor.visit(current);
-            current = current.getInnerNode().orElse(null);
-        }
+    public LLPNodeChain chain() {
+        return nodeChain;
     }
 
     /**
@@ -152,7 +67,7 @@ public final class LLPFrame {
         return "LLPFrame{" +
                 "crc=" + crc +
                 ", timestamp=" + timestamp +
-                ", nodes=" + getNodes() +
+                ", nodes=" + nodeChain.size() +
                 '}';
     }
 
@@ -168,7 +83,7 @@ public final class LLPFrame {
         if (!(o instanceof LLPFrame that)) return false;
 
         return crc == that.crc &&
-                Objects.equals(content, that.content);
+                Objects.equals(nodeChain, that.nodeChain);
     }
 
     /**
@@ -176,6 +91,6 @@ public final class LLPFrame {
      */
     @Override
     public int hashCode() {
-        return Objects.hash(content, crc);
+        return Objects.hash(nodeChain, crc);
     }
 }
