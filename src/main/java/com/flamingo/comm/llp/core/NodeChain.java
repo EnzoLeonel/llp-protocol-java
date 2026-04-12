@@ -20,7 +20,7 @@ import java.util.function.Consumer;
  *
  * <p>This class is immutable and thread-safe.</p>
  */
-public final class LLPNodeChain implements Iterable<LLPNode> {
+public final class NodeChain implements Iterable<LLPNode> {
 
     private final List<LLPNode> nodes;
 
@@ -31,7 +31,7 @@ public final class LLPNodeChain implements Iterable<LLPNode> {
      *
      * @param nodes ordered list of nodes (outer → inner)
      */
-    LLPNodeChain(List<LLPNode> nodes) {
+    NodeChain(List<LLPNode> nodes) {
         this.nodes = List.copyOf(nodes);
     }
 
@@ -100,13 +100,13 @@ public final class LLPNodeChain implements Iterable<LLPNode> {
     /**
      * Traverses all nodes using a visitor pattern.
      *
-     * <p>A {@link LLPNodeVisitor} is configured using the provided consumer,
+     * <p>A {@link NodeVisitor} is configured using the provided consumer,
      * and then applied to each node in order.</p>
      *
      * @param consumer a function that configures the visitor handlers
      */
-    public void visit(Consumer<LLPNodeVisitor> consumer) {
-        LLPNodeVisitor visitor = new LLPNodeVisitor();
+    public void visit(Consumer<NodeVisitor> consumer) {
+        NodeVisitor visitor = new NodeVisitor();
         consumer.accept(visitor);
 
         for (LLPNode node : nodes) {
@@ -127,10 +127,10 @@ public final class LLPNodeChain implements Iterable<LLPNode> {
     }
 
     /**
-     * Builder for constructing {@link LLPNodeChain} instances incrementally.
+     * Builder for constructing {@link NodeChain} instances incrementally.
      *
      * <p>This builder is mutable and intended to be used during parsing or frame construction.
-     * Once {@link #build()} is called, the resulting {@link LLPNodeChain} is immutable.</p>
+     * Once {@link #build()} is called, the resulting {@link NodeChain} is immutable.</p>
      */
     public static class Builder {
 
@@ -150,12 +150,12 @@ public final class LLPNodeChain implements Iterable<LLPNode> {
         }
 
         /**
-         * Builds an immutable {@link LLPNodeChain} from the current state.
+         * Builds an immutable {@link NodeChain} from the current state.
          *
          * @return a new immutable node chain
          */
-        public LLPNodeChain build() {
-            return new LLPNodeChain(nodes);
+        public NodeChain build() {
+            return new NodeChain(nodes);
         }
     }
 }
