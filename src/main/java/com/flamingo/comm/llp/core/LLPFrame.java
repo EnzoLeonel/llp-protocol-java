@@ -14,7 +14,7 @@ import java.util.Objects;
  */
 public final class LLPFrame {
 
-    private final LLPNodeChain nodeChain;
+    private final NodeChain nodeChain;
     private final int crc;
     private final long timestamp;
 
@@ -24,7 +24,7 @@ public final class LLPFrame {
      * @param nodeChain nested nodes
      * @param crc     calculated CRC value
      */
-    LLPFrame(LLPNodeChain nodeChain, int crc) {
+    LLPFrame(NodeChain nodeChain, int crc) {
         this(nodeChain, crc, System.currentTimeMillis());
     }
 
@@ -35,7 +35,7 @@ public final class LLPFrame {
      * @param crc       calculated CRC value
      * @param timestamp creation timestamp (milliseconds)
      */
-    LLPFrame(LLPNodeChain nodeChain, int crc, long timestamp) {
+    LLPFrame(NodeChain nodeChain, int crc, long timestamp) {
         this.nodeChain = nodeChain;
         this.crc = crc;
         this.timestamp = timestamp;
@@ -55,7 +55,7 @@ public final class LLPFrame {
         return timestamp;
     }
 
-    public LLPNodeChain chain() {
+    public NodeChain chain() {
         return nodeChain;
     }
 
