@@ -29,7 +29,7 @@ import java.util.function.Consumer;
  * <p>Note: This is a lightweight alternative to the traditional Visitor pattern,
  * designed to avoid boilerplate in extensible layer-based architectures.</p>
  */
-public class LLPNodeVisitor {
+public class NodeVisitor {
 
     private final Map<Class<?>, Consumer<?>> handlers = new HashMap<>();
 
@@ -41,7 +41,7 @@ public class LLPNodeVisitor {
      * @param <T>     node type
      * @return this visitor instance (for chaining)
      */
-    public <T extends LLPNode> LLPNodeVisitor on(Class<T> type, Consumer<T> handler) {
+    public <T extends LLPNode> NodeVisitor on(Class<T> type, Consumer<T> handler) {
         handlers.put(type, handler);
         return this;
     }
