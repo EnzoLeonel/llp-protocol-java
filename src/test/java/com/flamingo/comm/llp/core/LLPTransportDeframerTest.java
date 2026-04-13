@@ -1,12 +1,13 @@
 package com.flamingo.comm.llp.core;
 
-import com.flamingo.comm.llp.LLP;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -16,13 +17,19 @@ class LLPTransportDeframerTest {
 
     @BeforeEach
     void setUp() {
-        deframer = new LLPTransportDeframer();
+        deframer = new LLPTransportDeframer(1024);
+    }
+
+    private byte[] buildFrame(byte[] payload) {
+        byte[] buffer = new byte[LLPTransportFramer.estimateMaxSize(payload.length)];
+        int len = LLPTransportFramer.build(payload, buffer, 0);
+        return Arrays.copyOf(buffer, len);
     }
 
     @Test
     void testSingleFrame() {
         byte[] payload = new byte[]{0x01, 0x02, 0x03};
-        byte[] frame = LLP.buildData(1, payload);
+        byte[] frame = buildFrame(payload);
 
         LLPRawFrame result = null;
 
@@ -42,8 +49,8 @@ class LLPTransportDeframerTest {
 
     @Test
     void testMultipleFramesBackToBack() {
-        byte[] f1 = LLP.buildPing(1);
-        byte[] f2 = LLP.buildPing(2);
+        byte[] f1 = buildFrame(new byte[]{0x01});
+        byte[] f2 = buildFrame(new byte[]{0x02});
 
         byte[] combined = new byte[f1.length + f2.length];
         System.arraycopy(f1, 0, combined, 0, f1.length);
@@ -62,7 +69,7 @@ class LLPTransportDeframerTest {
 
     @Test
     void testFragmentedFrame() {
-        byte[] frame = LLP.buildPing(42);
+        byte[] frame = buildFrame(new byte[]{42});
 
         LLPRawFrame result = null;
 
@@ -81,7 +88,7 @@ class LLPTransportDeframerTest {
     @Test
     void testNoiseBeforeFrame() {
         byte[] noise = new byte[]{0x00, 0x13, 0x7F, 0x55};
-        byte[] frame = LLP.buildPing(7);
+        byte[] frame = buildFrame(new byte[]{7});
 
         for (byte b : noise) {
             deframer.processByte(b);
@@ -99,7 +106,7 @@ class LLPTransportDeframerTest {
 
     @Test
     void testInvalidCRC() {
-        byte[] frame = LLP.buildPing(1);
+        byte[] frame = buildFrame(new byte[]{1});
 
         // Corrupt CRC
         frame[frame.length - 1] ^= 0xFF;
@@ -117,7 +124,7 @@ class LLPTransportDeframerTest {
 
     @Test
     void testTimeoutResetsParser() throws InterruptedException {
-        byte[] frame = LLP.buildPing(10);
+        byte[] frame = buildFrame(new byte[]{10});
 
         for (int i = 0; i < frame.length / 2; i++) {
             deframer.processByte(frame[i]);
@@ -137,21 +144,62 @@ class LLPTransportDeframerTest {
     }
 
     @Test
-    void testMaxPayload() {
-        byte[] payload = new byte[LLP.MAX_PAYLOAD_SIZE_BYTES];
-        byte[] frame = LLP.buildData(1, payload);
+    void testPayloadExceedsMaximum() {
+        byte[] payload = new byte[1025]; // max is 1024
+        byte[] frame = buildFrame(payload);
+
+        AtomicInteger payloadErrors = new AtomicInteger();
+
+        LLPTransportDeframer.LLPFrameListener listener = new LLPTransportDeframer.LLPFrameListener() {
+            @Override
+            public void onFrameReceived(LLPRawFrame frame) {
+                // ignored
+            }
+
+            @Override
+            public void onFrameError(ErrorCode errorCode) {
+                if (errorCode == ErrorCode.PAYLOAD_LEN_INVALID) {
+                    payloadErrors.incrementAndGet();
+                }
+            }
+        };
+
+        deframer.addListener(listener);
+
+        try {
+            LLPRawFrame result = null;
+
+            for (byte b : frame) {
+                LLPRawFrame f = deframer.processByte(b);
+                if (f != null) result = f;
+            }
+
+            assertNull(result);
+            assertEquals(1, payloadErrors.get());
+            assertEquals(1, deframer.getStatistics().getFramesError());
+
+        } finally {
+            deframer.removeListener(listener);
+        }
+    }
+
+    @Test
+    void testRecoveryAfterPayloadOverflow() {
+        byte[] invalid = buildFrame(new byte[1025]);
+        byte[] valid = buildFrame(new byte[]{1, 2, 3});
 
         LLPRawFrame result = null;
 
-        for (byte b : frame) {
+        for (byte b : invalid) {
+            deframer.processByte(b);
+        }
+
+        for (byte b : valid) {
             LLPRawFrame f = deframer.processByte(b);
             if (f != null) result = f;
         }
 
         assertNotNull(result);
-
-        ByteBuffer buf = result.payload();
-        assertEquals(payload.length, buf.remaining());
     }
 
     @Test
@@ -160,7 +208,7 @@ class LLPTransportDeframerTest {
                 0x11, (byte) 0xAA, 0x22, (byte) 0xAA, 0x33
         };
 
-        byte[] frame = LLP.buildData(1, payload);
+        byte[] frame = buildFrame(payload);
 
         LLPRawFrame result = null;
 
@@ -180,7 +228,7 @@ class LLPTransportDeframerTest {
 
     @Test
     void testInvalidEscapeSequence() {
-        byte[] frame = LLP.buildPing(1);
+        byte[] frame = buildFrame(new byte[]{1});
 
         frame[5] = (byte) 0xAA;
         frame[6] = (byte) 0x99;
@@ -194,8 +242,8 @@ class LLPTransportDeframerTest {
 
     @Test
     void testProcessBytesBatch() {
-        byte[] f1 = LLP.buildPing(1);
-        byte[] f2 = LLP.buildPing(2);
+        byte[] f1 = buildFrame(new byte[]{1});
+        byte[] f2 = buildFrame(new byte[]{2});
 
         byte[] combined = new byte[f1.length + f2.length];
         System.arraycopy(f1, 0, combined, 0, f1.length);
@@ -214,7 +262,7 @@ class LLPTransportDeframerTest {
             byte[] payload = new byte[32];
             random.nextBytes(payload);
 
-            byte[] frame = LLP.buildData(i, payload);
+            byte[] frame = buildFrame(payload);
 
             LLPRawFrame result = null;
 

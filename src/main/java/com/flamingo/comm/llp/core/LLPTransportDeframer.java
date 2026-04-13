@@ -32,12 +32,12 @@ public final class LLPTransportDeframer {
     private static final byte MAGIC_1 = (byte) 0xAA;
     private static final byte MAGIC_2 = (byte) 0x55;
     private static final long DEFAULT_TIMEOUT_MS = 2000;
+    private static final int DEFAULT_MAX_PAYLOAD_SIZE_BYTES = 1024 * 1024; // 1 MB
 
     private final byte[] headerBuf = new byte[4];
     private final byte[] payload;
     private final long timeoutMs;
 
-    private final Queue<LLPRawFrame> frameQueue = new ConcurrentLinkedQueue<>();
     private final Queue<LLPFrameListener> listeners = new ConcurrentLinkedQueue<>();
     private final Statistics statistics = new Statistics();
 
@@ -55,34 +55,34 @@ public final class LLPTransportDeframer {
      * Creates a deframer with default configuration.
      */
     public LLPTransportDeframer() {
-        this(LLP.MAX_PAYLOAD_SIZE_BYTES, DEFAULT_TIMEOUT_MS);
+        this(DEFAULT_MAX_PAYLOAD_SIZE_BYTES, DEFAULT_TIMEOUT_MS);
     }
 
     /**
      * Creates a deframer with a custom maximum payload size.
      *
-     * @param maxPayload maximum allowed payload size in bytes
+     * @param maxPayloadBytes maximum allowed payload size in bytes
      */
-    public LLPTransportDeframer(int maxPayload) {
-        this(maxPayload, DEFAULT_TIMEOUT_MS);
+    public LLPTransportDeframer(int maxPayloadBytes) {
+        this(maxPayloadBytes, DEFAULT_TIMEOUT_MS);
     }
 
     /**
      * Creates a deframer with custom configuration.
      *
-     * @param maxPayload maximum allowed payload size in bytes
+     * @param maxPayloadBytes maximum allowed payload size in bytes
      * @param timeoutMs  timeout in milliseconds between bytes before resetting the parser
      */
-    public LLPTransportDeframer(int maxPayload, long timeoutMs) {
-        if (maxPayload < 1) {
-            maxPayload = LLP.MAX_PAYLOAD_SIZE_BYTES;
+    public LLPTransportDeframer(int maxPayloadBytes, long timeoutMs) {
+        if (maxPayloadBytes < 1) {
+            maxPayloadBytes = DEFAULT_MAX_PAYLOAD_SIZE_BYTES;
         }
 
         if (timeoutMs < 1) {
             timeoutMs = DEFAULT_TIMEOUT_MS;
         }
 
-        this.payload = new byte[maxPayload];
+        this.payload = new byte[maxPayloadBytes];
         this.timeoutMs = timeoutMs;
     }
 
@@ -241,7 +241,6 @@ public final class LLPTransportDeframer {
                 reset();
 
                 notifySuccess(frame);
-                frameQueue.offer(frame);
 
                 return frame;
         }
@@ -292,15 +291,6 @@ public final class LLPTransportDeframer {
      */
     public void removeListener(LLPFrameListener listener) {
         listeners.remove(listener);
-    }
-
-    /**
-     * Returns the queue containing parsed frames.
-     *
-     * @return concurrent queue of frames
-     */
-    public Queue<LLPRawFrame> getFrameQueue() {
-        return frameQueue;
     }
 
     /**
