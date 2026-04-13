@@ -2,7 +2,7 @@ package com.flamingo.comm.llp.core;
 
 import com.flamingo.comm.llp.spi.LLPNode;
 
-import java.util.Arrays;
+import java.nio.ByteBuffer;
 import java.util.HexFormat;
 import java.util.Locale;
 
@@ -16,24 +16,26 @@ import java.util.Locale;
  */
 public final class FinalNode implements LLPNode {
     public static final int ID = 0;
-    private static final byte[] EMPTY_ARRAY = new byte[0];
-
     /**
      * Shared instance for empty payload (singleton).
      */
-    public static final FinalNode EMPTY = new FinalNode(EMPTY_ARRAY);
+    private static final ByteBuffer EMPTY_ARRAY =
+            ByteBuffer.wrap(new byte[0]).asReadOnlyBuffer();
 
-    private final byte[] payload;
+    public static final FinalNode EMPTY = new FinalNode(EMPTY_ARRAY);
+    private final ByteBuffer payload;
 
     /**
      * Creates a FinalNode with payload.
      *
      * @param payload raw payload (nullable → treated as empty)
      */
-    FinalNode(byte[] payload) {
-        this.payload = (payload == null || payload.length == 0)
-                ? EMPTY_ARRAY
-                : Arrays.copyOf(payload, payload.length);
+    private FinalNode(byte[] payload) {
+        this.payload = ByteBuffer.wrap(payload.clone()).asReadOnlyBuffer();
+    }
+
+    private FinalNode(ByteBuffer payload) {
+        this.payload = payload;
     }
 
     @Override
@@ -54,16 +56,19 @@ public final class FinalNode implements LLPNode {
     /**
      * Raw payload sent by the sender
      *
-     * @return an array of bytes containing the raw payload sent by the sender, or an empty array
+     * @return an immutable array of bytes containing the raw payload sent by the sender, or an empty array
      */
-    public byte[] getPayload() {
-        return payload;
+    public ByteBuffer getPayload() {
+        return payload.asReadOnlyBuffer();
     }
 
     @Override
     public String toString() {
+        byte[] bytes = new byte[payload.remaining()];
+        payload.get(bytes);
+
         return "FinalNode{" +
-                "payloadHex=" + HexFormat.of().formatHex(payload).toUpperCase(Locale.ROOT) +
+                "payloadHex=" + HexFormat.of().formatHex(bytes).toUpperCase(Locale.ROOT) +
                 '}';
     }
 }

@@ -54,6 +54,20 @@ class LLPTransportFramerTest {
         }
     }
 
+    @Test
+    void testEstimateMaxSize() {
+        int maxSizeWithoutPayload = LLPTransportFramer.estimateMaxSize(0);
+        int maxSize = LLPTransportFramer.estimateMaxSize(3);
+
+        assertEquals(10, maxSizeWithoutPayload);
+        assertEquals(16, maxSize);
+    }
+
+    @Test
+    void testEstimateMaxSizeWithNegativePayload() {
+        assertThrows(IllegalArgumentException.class, () -> LLPTransportFramer.estimateMaxSize(-1));
+    }
+
     // ================= CRC =================
 
     @Test
@@ -185,9 +199,20 @@ class LLPTransportFramerTest {
         byte[] payload = new byte[]{1, 2, 3};
 
         byte[] frame = LLPTransportFramer.buildSafe(payload);
+        byte[] frameWithoutPayload = LLPTransportFramer.buildSafe(new byte[0]);
+        byte[] frameWithPayloadNull = LLPTransportFramer.buildSafe(null);
 
         assertNotNull(frame);
+        assertNotNull(frameWithoutPayload);
+        assertNotNull(frameWithPayloadNull);
+
         assertTrue(frame.length > payload.length);
+        assertEquals(frameWithoutPayload.length, frameWithPayloadNull.length);
+
+        // Payload null and payload empty must be generated the same frame
+        for (int i = 0; i < frameWithoutPayload.length; i++) {
+            assertEquals(frameWithoutPayload[i], frameWithPayloadNull[i]);
+        }
     }
 
     // ================= UTILS =================
