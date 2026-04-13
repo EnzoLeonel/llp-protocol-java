@@ -1,10 +1,14 @@
 package com.flamingo.comm.llp.core;
 
+import com.flamingo.comm.llp.util.ByteWriter;
 import com.flamingo.comm.llp.util.CRC16CCITT;
 import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayOutputStream;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Random;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -286,5 +290,215 @@ class LLPTransportFramerTest {
         // MAGIC_1(0), MAGIC_2(1), LEN_L(2), LEN_H(3)
         assertEquals((byte) 0x02, frame[2], "Length Low byte should be 0x02");
         assertEquals((byte) 0x01, frame[3], "Length High byte should be 0x01");
+    }
+
+    // ================= BYTE WRITER =================
+
+    @Test
+    void testBuildWithByteWriterSimple() {
+        byte[] payload = {0x01, 0x02, 0x03};
+
+        TestByteWriter writer = new TestByteWriter();
+
+        int written = LLPTransportFramer.build(payload, writer);
+        byte[] frame = writer.toByteArray();
+
+        assertEquals(written, frame.length);
+        assertEquals((byte) 0xAA, frame[0]);
+        assertEquals((byte) 0x55, frame[1]);
+    }
+
+    @Test
+    void testBuildWriterEqualsBufferBuild() {
+        byte[] payload = {0x11, 0x22, 0x33};
+
+        // Writer version
+        TestByteWriter writer = new TestByteWriter();
+        LLPTransportFramer.build(payload, writer);
+        byte[] frame1 = writer.toByteArray();
+
+        // Buffer version
+        byte[] buffer = new byte[LLPTransportFramer.estimateMaxSize(payload.length)];
+        int written = LLPTransportFramer.build(payload, buffer, 0);
+
+        byte[] frame2 = Arrays.copyOf(buffer, written);
+
+        assertArrayEquals(frame2, frame1);
+    }
+
+    @Test
+    void testBuildWriterStuffing() {
+        byte[] payload = {(byte) 0xAA};
+
+        TestByteWriter writer = new TestByteWriter();
+        LLPTransportFramer.build(payload, writer);
+
+        byte[] frame = writer.toByteArray();
+
+        boolean found = false;
+        for (int i = 2; i < frame.length - 1; i++) {
+            if (frame[i] == (byte) 0xAA && frame[i + 1] == 0x00) {
+                found = true;
+                break;
+            }
+        }
+
+        assertTrue(found);
+    }
+
+    @Test
+    void testBuildWriterNullPayload() {
+        TestByteWriter writer = new TestByteWriter();
+
+        int written = LLPTransportFramer.build(null, writer);
+        byte[] frame = writer.toByteArray();
+
+        assertEquals(written, frame.length);
+
+        // Solo header + len + crc
+        assertTrue(frame.length >= 6);
+    }
+
+    @Test
+    void testWriteOrderStartsWithMagic() {
+        RecordingWriter writer = new RecordingWriter();
+
+        LLPTransportFramer.build(new byte[]{1, 2}, writer);
+
+        assertEquals((byte) 0xAA, writer.getBytes().get(0));
+        assertEquals((byte) 0x55, writer.getBytes().get(1));
+    }
+
+    @Test
+    void testWriterFailurePropagates() {
+        FailingWriter writer = new FailingWriter();
+
+        assertThrows(RuntimeException.class, () ->
+                LLPTransportFramer.build(new byte[]{1, 2, 3}, writer)
+        );
+    }
+
+    @Test
+    void testWriterFrameIsParsable() {
+        byte[] payload = new byte[50];
+        new Random().nextBytes(payload);
+
+        TestByteWriter writer = new TestByteWriter();
+        LLPTransportFramer.build(payload, writer);
+
+        byte[] frame = writer.toByteArray();
+
+        LLPTransportDeframer deframer = new LLPTransportDeframer();
+
+        LLPRawFrame result = null;
+
+        for (byte b : frame) {
+            LLPRawFrame f = deframer.processByte(b);
+            if (f != null) result = f;
+        }
+
+        assertNotNull(result);
+
+        ByteBuffer buf = result.payload();
+        byte[] extracted = new byte[buf.remaining()];
+        buf.get(extracted);
+
+        assertArrayEquals(payload, extracted);
+    }
+
+    @Test
+    void testBuildReturnsCorrectWrittenCount() {
+        // Payload that will force multiple stuffings
+        byte[] payload = {(byte) 0xAA, 0x01, (byte) 0xAA, 0x02};
+
+        TestByteWriter writer = new TestByteWriter(); // Assuming this tracks size
+        int bytesWritten = LLPTransportFramer.build(payload, writer);
+
+        byte[] frame = writer.toByteArray();
+
+        assertEquals(frame.length, bytesWritten, "The returned written count should match the actual bytes emitted");
+    }
+
+    @Test
+    void testBuildMaximumPayloadDoesNotCrash() {
+        // Max unsigned short is 65535
+        int maxPayloadSize = 65535;
+        byte[] massivePayload = new byte[maxPayloadSize];
+
+        // Fill with 0xAA to force maximum worst-case stuffing
+        java.util.Arrays.fill(massivePayload, (byte) 0xAA);
+
+        TestByteWriter writer = new TestByteWriter();
+
+        // We just want to ensure it completes successfully without memory errors or index bounds
+        assertDoesNotThrow(() -> {
+            int written = LLPTransportFramer.build(massivePayload, writer);
+
+            // 2 (Magic) + 4 (Len stuffed) + 131070 (Payload stuffed) + 4 (CRC stuffed)
+            assertTrue(written > 131000, "Frame should be written successfully even at massive sizes");
+        }, "Building a massive stuffed frame should not throw exceptions");
+    }
+
+    @Test
+    void testWriterFailsDuringStuffingInjection() {
+        byte[] payload = {(byte) 0xAA, 0x02, 0x03};
+
+        ByteWriter boundaryFailingWriter = new ByteWriter() {
+            private int count = 0;
+
+            @Override
+            public void write(byte b) {
+                count++;
+                // 1. MAGIC_1, 2. MAGIC_2, 3. LEN_L, 4. LEN_H
+                // 5. payload[0] (0xAA).
+                // 6. The stuffing byte (0x00) should trigger the failure!
+                if (count == 6) {
+                    throw new IllegalStateException("Socket disconnected during stuffing!");
+                }
+            }
+        };
+
+        IllegalStateException exception = assertThrows(IllegalStateException.class, () -> {
+            LLPTransportFramer.build(payload, boundaryFailingWriter);
+        });
+
+        assertEquals("Socket disconnected during stuffing!", exception.getMessage());
+    }
+
+    class TestByteWriter implements ByteWriter {
+        private final ByteArrayOutputStream out = new ByteArrayOutputStream();
+
+        @Override
+        public void write(byte b) {
+            out.write(b);
+        }
+
+        public byte[] toByteArray() {
+            return out.toByteArray();
+        }
+    }
+
+    class RecordingWriter implements ByteWriter {
+        private final List<Byte> bytes = new ArrayList<>();
+
+        @Override
+        public void write(byte b) {
+            bytes.add(b);
+        }
+
+        public List<Byte> getBytes() {
+            return bytes;
+        }
+    }
+
+    class FailingWriter implements ByteWriter {
+        private int count = 0;
+
+        @Override
+        public void write(byte b) {
+            if (++count > 5) {
+                throw new RuntimeException("Writer failure");
+            }
+        }
     }
 }
