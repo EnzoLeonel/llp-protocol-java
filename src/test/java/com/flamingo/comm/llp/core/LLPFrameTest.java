@@ -84,8 +84,15 @@ class LLPFrameTest {
 
     @Test
     void testEqualsDifferentObjectsSameContent() {
-        NodeChain chain1 = createChain(1, 2);
-        NodeChain chain2 = createChain(1, 2);
+        NodeChain chain1 = new NodeChain.Builder()
+                .add(new SpecialNode(1))
+                .add(new SpecialNode(2))
+                .build();
+
+        NodeChain chain2 = new NodeChain.Builder()
+                .add(new SpecialNode(1))
+                .add(new SpecialNode(2))
+                .build();
 
         LLPFrame f1 = new LLPFrame(chain1, 100, 1L);
         LLPFrame f2 = new LLPFrame(chain2, 100, 999L); // different timestamp
