@@ -15,7 +15,7 @@ import java.util.Arrays;
  * <p>This class is immutable and thread-safe.</p>
  */
 public final class LLPRawFrame {
-
+    private static final ByteBuffer EMPTY_ARRAY = ByteBuffer.wrap(new byte[0]).asReadOnlyBuffer();
     private final ByteBuffer payload;
     private final int crc;
     private final long timestamp;
@@ -38,7 +38,14 @@ public final class LLPRawFrame {
      * @param timestamp creation timestamp in milliseconds
      */
     LLPRawFrame(byte[] payload, int crc, long timestamp) {
-        this(payload, payload.length, crc, timestamp);
+        this.crc = crc;
+        this.timestamp = timestamp;
+
+        if (payload == null || payload.length == 0) {
+            this.payload = EMPTY_ARRAY;
+        } else {
+            this.payload = ByteBuffer.wrap(payload.clone()).asReadOnlyBuffer();
+        }
     }
 
     /**
@@ -50,12 +57,14 @@ public final class LLPRawFrame {
      * @param timestamp  creation timestamp in milliseconds
      */
     LLPRawFrame(byte[] payload, int payloadLen, int crc, long timestamp) {
-        byte[] safePayload = payload != null ? Arrays.copyOf(payload, payloadLen) : new byte[0];
-
-        // Wrap + read-only view
-        this.payload = ByteBuffer.wrap(safePayload).asReadOnlyBuffer();
         this.crc = crc;
         this.timestamp = timestamp;
+
+        if (payload == null || payloadLen <= 0) {
+            this.payload = EMPTY_ARRAY;
+        } else {
+            this.payload = ByteBuffer.wrap(Arrays.copyOf(payload, payloadLen)).asReadOnlyBuffer();
+        }
     }
 
     /**
