@@ -2,10 +2,7 @@ package com.flamingo.comm.llp.core;
 
 import com.flamingo.comm.llp.spi.LLPNode;
 
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.function.Consumer;
 
 /**
@@ -21,7 +18,7 @@ import java.util.function.Consumer;
  * <p>This class is immutable and thread-safe.</p>
  */
 public final class NodeChain implements Iterable<LLPNode> {
-
+    public static final NodeChain EMPTY = new NodeChain(Collections.emptyList());
     private final List<LLPNode> nodes;
 
     /**
@@ -31,7 +28,7 @@ public final class NodeChain implements Iterable<LLPNode> {
      *
      * @param nodes ordered list of nodes (outer → inner)
      */
-    NodeChain(List<LLPNode> nodes) {
+    private NodeChain(List<LLPNode> nodes) {
         this.nodes = List.copyOf(nodes);
     }
 
@@ -126,6 +123,18 @@ public final class NodeChain implements Iterable<LLPNode> {
         return nodes.iterator();
     }
 
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof NodeChain that)) return false;
+        return nodes.equals(that.nodes);
+    }
+
+    @Override
+    public int hashCode() {
+        return nodes.hashCode();
+    }
+
     /**
      * Builder for constructing {@link NodeChain} instances incrementally.
      *
@@ -133,8 +142,7 @@ public final class NodeChain implements Iterable<LLPNode> {
      * Once {@link #build()} is called, the resulting {@link NodeChain} is immutable.</p>
      */
     public static class Builder {
-
-        private final List<LLPNode> nodes = new ArrayList<>();
+        private List<LLPNode> nodes;
 
         /**
          * Adds a node to the chain.
@@ -145,6 +153,11 @@ public final class NodeChain implements Iterable<LLPNode> {
          * @return this builder instance for chaining
          */
         public Builder add(LLPNode node) {
+            Objects.requireNonNull(node, "node cannot be null");
+
+            // Lazy array creation to avoid unnecessary array creation
+            if (nodes == null) { nodes = new ArrayList<>(); }
+
             nodes.add(node);
             return this;
         }
@@ -155,6 +168,10 @@ public final class NodeChain implements Iterable<LLPNode> {
          * @return a new immutable node chain
          */
         public NodeChain build() {
+            // It would never be empty, but it is left as is for future compatibility
+            if (nodes == null || nodes.isEmpty()) {
+                return NodeChain.EMPTY;
+            }
             return new NodeChain(nodes);
         }
     }

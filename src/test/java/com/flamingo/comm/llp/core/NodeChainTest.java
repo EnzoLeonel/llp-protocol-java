@@ -257,4 +257,133 @@ public class NodeChainTest {
 
         assertEquals(1, chain.size());
     }
+
+    @Test
+    void testBuilderAddNullThrows() {
+        NodeChain.Builder builder = new NodeChain.Builder();
+
+        assertThrows(NullPointerException.class, () ->
+                builder.add(null)
+        );
+    }
+
+    @Test
+    void testEmptyBuilderReturnsSingleton() {
+        NodeChain chain1 = new NodeChain.Builder().build();
+        NodeChain chain2 = new NodeChain.Builder().build();
+
+        assertSame(chain1, chain2);
+    }
+
+    @Test
+    void testEqualsSameContent() {
+        // NOTE: They will only be equal if they contain the same LLPNode instances in the same order,
+        // unless the “equals” method is overridden in the specific LLPNode implement
+
+        LLPNode node1 = new TestNode(1);
+        LLPNode node2 = new TestNode(2);
+
+        NodeChain c1 = new NodeChain.Builder()
+                .add(node1)
+                .add(node2)
+                .build();
+
+        NodeChain c2 = new NodeChain.Builder()
+                .add(node1)
+                .add(node2)
+                .build();
+
+        NodeChain c3 = new NodeChain.Builder()
+                .add(new TestNode(3))
+                .add(new TestNode(4))
+                .build();
+
+        NodeChain c4 = new NodeChain.Builder()
+                .add(new TestNode(3))
+                .add(new TestNode(4))
+                .build();
+
+        NodeChain c5 = new NodeChain.Builder()
+                .add(new SpecialNode(5))
+                .add(new SpecialNode(6))
+                .build();
+
+        NodeChain c6 = new NodeChain.Builder()
+                .add(new SpecialNode(5))
+                .add(new SpecialNode(6))
+                .build();
+
+        // NodeChain with the same LLPNode instances
+        assertNotSame(c1, c2);
+        assertEquals(c1, c2);
+        assertEquals(c1.hashCode(), c2.hashCode());
+
+        // NodeChain with different LLPNode instances, but with the same internal value
+        assertNotSame(c3, c4);
+        assertNotEquals(c3, c4);
+        assertNotEquals(c3.hashCode(), c4.hashCode());
+
+        // NodeChain with different LLPNode instances that implement equals
+        assertNotSame(c5, c6);
+        assertEquals(c5, c6);
+    }
+
+    @Test
+    void testEqualsDifferentOrder() {
+        NodeChain c1 = new NodeChain.Builder()
+                .add(new TestNode(1))
+                .add(new TestNode(2))
+                .build();
+
+        NodeChain c2 = new NodeChain.Builder()
+                .add(new TestNode(2))
+                .add(new TestNode(1))
+                .build();
+
+        assertNotEquals(c1, c2);
+    }
+
+    @Test
+    void testEqualsDifferentContent() {
+        NodeChain c1 = new NodeChain.Builder()
+                .add(new TestNode(1))
+                .build();
+
+        NodeChain c2 = new NodeChain.Builder()
+                .add(new TestNode(2))
+                .build();
+
+        assertNotEquals(c1, c2);
+    }
+
+    @Test
+    void testEmptyChainBehavior() {
+        NodeChain empty = NodeChain.EMPTY;
+
+        assertEquals(0, empty.size());
+        assertTrue(empty.asList().isEmpty());
+        assertTrue(empty.getNode(1).isEmpty());
+        assertTrue(empty.getNode(TestNode.class).isEmpty());
+    }
+
+    @Test
+    void testEmptyIdentity() {
+        NodeChain chain = new NodeChain.Builder().build();
+
+        assertSame(NodeChain.EMPTY, chain);
+    }
+
+    @Test
+    void testBuilderListIsolation() {
+        List<LLPNode> original = new ArrayList<>();
+        original.add(new TestNode(1));
+
+        NodeChain chain = new NodeChain.Builder()
+                .add(original.getFirst())
+                .build();
+
+        original.clear();
+
+        assertEquals(1, chain.size(), "Chain should not be affected by external list changes");
+    }
 }
