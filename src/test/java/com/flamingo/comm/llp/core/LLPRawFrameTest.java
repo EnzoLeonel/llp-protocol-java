@@ -165,4 +165,13 @@ class LLPRawFrameTest {
 
         assertArrayEquals(payload, extracted);
     }
+
+    @Test
+    void testPayloadLenGreaterThanArrayThrows() {
+        byte[] payload = {1, 2, 3};
+
+        assertThrows(IllegalArgumentException.class, () ->
+                new LLPRawFrame(payload, 10, 0, System.currentTimeMillis())
+        );
+    }
 }

@@ -19,23 +19,30 @@ public final class FinalNode implements LLPNode {
     /**
      * Shared instance for empty payload (singleton).
      */
-    private static final ByteBuffer EMPTY_ARRAY =
-            ByteBuffer.wrap(new byte[0]).asReadOnlyBuffer();
+    private static final byte[] EMPTY_ARRAY = new byte[0];
 
     public static final FinalNode EMPTY = new FinalNode(EMPTY_ARRAY);
-    private final ByteBuffer payload;
+    private final byte[] payload;
 
     /**
      * Creates a FinalNode with payload.
+     * The `of()` factory method prevents it from being null or empty
      *
      * @param payload raw payload (nullable → treated as empty)
      */
     private FinalNode(byte[] payload) {
-        this.payload = ByteBuffer.wrap(payload.clone()).asReadOnlyBuffer();
+        this.payload = payload.clone();
     }
 
+    /**
+     * The `of()` factory method prevents it from being null or empty
+     */
     private FinalNode(ByteBuffer payload) {
-        this.payload = payload;
+        ByteBuffer readOnly = payload.asReadOnlyBuffer();
+        byte[] copy = new byte[readOnly.remaining()];
+        readOnly.get(copy);
+
+        this.payload = copy;
     }
 
     @Override
@@ -54,21 +61,28 @@ public final class FinalNode implements LLPNode {
     }
 
     /**
+     * Factory method to reuse EMPTY instance when possible.
+     */
+    static FinalNode of(ByteBuffer payload) {
+        if (payload == null || !payload.hasRemaining()) {
+            return EMPTY;
+        }
+        return new FinalNode(payload);
+    }
+
+    /**
      * Raw payload sent by the sender
      *
      * @return an immutable array of bytes containing the raw payload sent by the sender, or an empty array
      */
     public ByteBuffer getPayload() {
-        return payload.asReadOnlyBuffer();
+        return ByteBuffer.wrap(payload).asReadOnlyBuffer();
     }
 
     @Override
     public String toString() {
-        byte[] bytes = new byte[payload.remaining()];
-        payload.get(bytes);
-
         return "FinalNode{" +
-                "payloadHex=" + HexFormat.of().formatHex(bytes).toUpperCase(Locale.ROOT) +
+                "payloadHex=" + HexFormat.of().formatHex(payload).toUpperCase(Locale.ROOT) +
                 '}';
     }
 }

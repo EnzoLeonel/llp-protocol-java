@@ -15,8 +15,8 @@ import java.util.Arrays;
  * <p>This class is immutable and thread-safe.</p>
  */
 public final class LLPRawFrame {
-    private static final ByteBuffer EMPTY_ARRAY = ByteBuffer.wrap(new byte[0]).asReadOnlyBuffer();
-    private final ByteBuffer payload;
+    private static final byte[] EMPTY_ARRAY = new byte[0];
+    private final byte[] payload;
     private final int crc;
     private final long timestamp;
 
@@ -44,7 +44,7 @@ public final class LLPRawFrame {
         if (payload == null || payload.length == 0) {
             this.payload = EMPTY_ARRAY;
         } else {
-            this.payload = ByteBuffer.wrap(payload.clone()).asReadOnlyBuffer();
+            this.payload = payload.clone();
         }
     }
 
@@ -55,15 +55,20 @@ public final class LLPRawFrame {
      * @param payloadLen length of payload
      * @param crc        validated CRC value
      * @param timestamp  creation timestamp in milliseconds
+     * @throws IllegalArgumentException if payloadLen is larger than the payload buffer
      */
-    LLPRawFrame(byte[] payload, int payloadLen, int crc, long timestamp) {
+    LLPRawFrame(byte[] payload, int payloadLen, int crc, long timestamp) throws IllegalArgumentException {
         this.crc = crc;
         this.timestamp = timestamp;
 
         if (payload == null || payloadLen <= 0) {
             this.payload = EMPTY_ARRAY;
+        } else if (payloadLen > payload.length) {
+            throw new IllegalArgumentException(
+                    "Invalid payloadLen: exceeds actual payload size"
+            );
         } else {
-            this.payload = ByteBuffer.wrap(Arrays.copyOf(payload, payloadLen)).asReadOnlyBuffer();
+            this.payload = Arrays.copyOf(payload, payloadLen);
         }
     }
 
@@ -76,7 +81,7 @@ public final class LLPRawFrame {
      * @return read-only ByteBuffer containing payload data
      */
     public ByteBuffer payload() {
-        return payload.asReadOnlyBuffer();
+        return ByteBuffer.wrap(payload).asReadOnlyBuffer();
     }
 
     /**

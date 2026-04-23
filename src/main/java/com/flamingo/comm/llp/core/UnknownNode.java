@@ -2,7 +2,7 @@ package com.flamingo.comm.llp.core;
 
 import com.flamingo.comm.llp.spi.LLPNode;
 
-import java.util.Arrays;
+import java.nio.ByteBuffer;
 
 /**
  * Represents an unknown or unsupported LLP layer.
@@ -16,13 +16,13 @@ import java.util.Arrays;
  * <p>This node preserves raw metadata for potential future use.</p>
  */
 public final class UnknownNode implements LLPNode {
-
+    private static final byte[] EMPTY_ARRAY = new byte[0];
     private final int id;
     private final byte[] metadata;
 
     UnknownNode(int id, byte[] metadata) {
         this.id = id;
-        this.metadata = (metadata != null) ? Arrays.copyOf(metadata, metadata.length) : new byte[0];
+        this.metadata = (metadata != null) ? metadata.clone() : EMPTY_ARRAY;
     }
 
     @Override
@@ -31,12 +31,12 @@ public final class UnknownNode implements LLPNode {
     }
 
     /**
-     * Returns raw metadata bytes associated with this unknown layer.
+     * Returns raw read-only metadata bytes associated with this unknown layer.
      *
-     * @return metadata copy (never null)
+     * @return metadata buffer as read-only
      */
-    public byte[] getMetadata() {
-        return Arrays.copyOf(metadata, metadata.length);
+    public ByteBuffer getMetadata() {
+        return ByteBuffer.wrap(metadata).asReadOnlyBuffer();
     }
 
     @Override

@@ -2,9 +2,18 @@ package com.flamingo.comm.llp.core;
 
 import org.junit.jupiter.api.Test;
 
+import java.nio.ByteBuffer;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 class UnknownNodeTest {
+
+    private byte[] extractData(UnknownNode node) {
+        ByteBuffer buffer = node.getMetadata();
+        byte[] extracted = new byte[buffer.remaining()];
+        buffer.get(extracted);
+        return extracted;
+    }
 
     @Test
     void testConstructorAndGetId() {
@@ -19,7 +28,7 @@ class UnknownNodeTest {
 
         UnknownNode node = new UnknownNode(1, metadata);
 
-        byte[] extracted = node.getMetadata();
+        byte[] extracted = extractData(node);
 
         assertArrayEquals(metadata, extracted);
     }
@@ -33,7 +42,7 @@ class UnknownNodeTest {
         // Modify original array
         metadata[0] = 99;
 
-        byte[] extracted = node.getMetadata();
+        byte[] extracted = extractData(node);
 
         assertEquals(1, extracted[0], "Internal state should not be affected by external changes");
     }
@@ -44,8 +53,8 @@ class UnknownNodeTest {
 
         UnknownNode node = new UnknownNode(1, metadata);
 
-        byte[] extracted1 = node.getMetadata();
-        byte[] extracted2 = node.getMetadata();
+        byte[] extracted1 = extractData(node);
+        byte[] extracted2 = extractData(node);
 
         // Modify returned array
         extracted1[0] = 99;
@@ -58,7 +67,7 @@ class UnknownNodeTest {
     void testNullMetadataBecomesEmptyArray() {
         UnknownNode node = new UnknownNode(1, null);
 
-        byte[] metadata = node.getMetadata();
+        byte[] metadata = extractData(node);
 
         assertNotNull(metadata);
         assertEquals(0, metadata.length);
@@ -68,7 +77,7 @@ class UnknownNodeTest {
     void testEmptyMetadata() {
         UnknownNode node = new UnknownNode(1, new byte[0]);
 
-        byte[] metadata = node.getMetadata();
+        byte[] metadata = extractData(node);
 
         assertNotNull(metadata);
         assertEquals(0, metadata.length);
@@ -95,7 +104,7 @@ class UnknownNodeTest {
 
         UnknownNode node = new UnknownNode(5, metadata);
 
-        byte[] extracted = node.getMetadata();
+        byte[] extracted = extractData(node);
 
         assertArrayEquals(metadata, extracted);
     }
