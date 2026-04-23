@@ -5,7 +5,7 @@ import java.util.Optional;
 /**
  * LLP Parser Error Codes
  */
-public enum ErrorCode {
+public enum TransportErrorCode {
     OK((byte) 0x00, "No error"),
     CHECKSUM_INVALID((byte) 0x01, "CRC checksum mismatch"),
     PAYLOAD_LEN_INVALID((byte) 0x02, "Payload length exceeds maximum"),
@@ -16,7 +16,7 @@ public enum ErrorCode {
     private final byte code;
     private final String description;
 
-    ErrorCode(byte code, String description) {
+    TransportErrorCode(byte code, String description) {
         this.code = code;
         this.description = description;
     }
@@ -27,8 +27,8 @@ public enum ErrorCode {
      * @param code byte received
      * @return an {@link Optional} containing the error code, or empty if the error code is not found
      */
-    public static Optional<ErrorCode> fromCode(byte code) {
-        for (ErrorCode err : values()) {
+    public static Optional<TransportErrorCode> fromCode(byte code) {
+        for (TransportErrorCode err : values()) {
             if (err.code == code) {
                 return Optional.of(err);
             }

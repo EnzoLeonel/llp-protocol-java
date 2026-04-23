@@ -102,7 +102,7 @@ public final class LLPTransportDeframer {
                 logger.warn("Frame timeout - resetting parser");
                 statistics.recordTimeout();
                 reset();
-                notifyError(ErrorCode.TIMEOUT);
+                notifyError(TransportErrorCode.TIMEOUT);
 
                 // Allow immediate resync if current byte starts a new frame
                 if (b == MAGIC_1) {
@@ -124,7 +124,7 @@ public final class LLPTransportDeframer {
                     // Overlapped frame detected (0xAA 0x55 inside payload)
                     logger.warn("Overlapped frame detected, resynchronizing");
                     statistics.recordError();
-                    notifyError(ErrorCode.SYNC_ERROR);
+                    notifyError(TransportErrorCode.SYNC_ERROR);
 
                     crcCalculated = 0xFFFF;
                     crcCalculated = CRC16CCITT.updateCRC(crcCalculated, MAGIC_1);
@@ -145,7 +145,7 @@ public final class LLPTransportDeframer {
                             Integer.toHexString(b & 0xFF));
                     statistics.recordError();
                     reset();
-                    notifyError(ErrorCode.SYNC_ERROR);
+                    notifyError(TransportErrorCode.SYNC_ERROR);
                     return null;
                 }
 
@@ -200,7 +200,7 @@ public final class LLPTransportDeframer {
                     logger.error("Payload length {} exceeds maximum {}", payloadLen, payload.length);
                     statistics.recordError();
                     reset();
-                    notifyError(ErrorCode.PAYLOAD_LEN_INVALID);
+                    notifyError(TransportErrorCode.PAYLOAD_LEN_INVALID);
                     return null;
                 }
 
@@ -231,7 +231,7 @@ public final class LLPTransportDeframer {
                             Integer.toHexString(crcCalculated));
                     statistics.recordError();
                     reset();
-                    notifyError(ErrorCode.CHECKSUM_INVALID);
+                    notifyError(TransportErrorCode.CHECKSUM_INVALID);
                     return null;
                 }
 
@@ -312,10 +312,10 @@ public final class LLPTransportDeframer {
         }
     }
 
-    private void notifyError(ErrorCode errorCode) {
+    private void notifyError(TransportErrorCode transportErrorCode) {
         for (LLPFrameListener listener : listeners) {
             try {
-                listener.onFrameError(errorCode);
+                listener.onFrameError(transportErrorCode);
             } catch (Exception e) {
                 logger.error("Listener error", e);
             }
@@ -347,8 +347,8 @@ public final class LLPTransportDeframer {
         /**
          * Invoked when a frame parsing error occurs.
          *
-         * @param errorCode error type
+         * @param transportErrorCode error type
          */
-        void onFrameError(ErrorCode errorCode);
+        void onFrameError(TransportErrorCode transportErrorCode);
     }
 }
