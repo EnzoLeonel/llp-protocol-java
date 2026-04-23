@@ -157,8 +157,8 @@ class LLPTransportDeframerTest {
             }
 
             @Override
-            public void onFrameError(ErrorCode errorCode) {
-                if (errorCode == ErrorCode.PAYLOAD_LEN_INVALID) {
+            public void onFrameError(TransportErrorCode errorCode) {
+                if (errorCode == TransportErrorCode.PAYLOAD_LEN_INVALID) {
                     payloadErrors.incrementAndGet();
                 }
             }
