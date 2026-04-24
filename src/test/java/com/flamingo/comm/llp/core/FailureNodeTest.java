@@ -18,7 +18,7 @@ class FailureNodeTest {
 
     @Test
     void testConstructorAndGetId() {
-        FailureNode node = new FailureNode(42, new byte[]{1, 2}, CoreParseErrorReason.MALFORMED_METADATA_LENGTH);
+        FailureNode node = new FailureNode(42, new byte[]{1, 2}, CoreParseErrorReason.METADATA_TRUNCATED);
 
         assertEquals(42, node.getId());
     }
@@ -27,7 +27,7 @@ class FailureNodeTest {
     void testMetadataContent() {
         byte[] metadata = {10, 20, 30};
 
-        FailureNode node = new FailureNode(1, metadata, CoreParseErrorReason.PAYLOAD_TOO_SHORT);
+        FailureNode node = new FailureNode(1, metadata, CoreParseErrorReason.LAYER_TOO_SHORT);
 
         byte[] extracted = extractMetadata(node);
 
@@ -38,7 +38,7 @@ class FailureNodeTest {
     void testMetadataIsDefensivelyCopiedInConstructor() {
         byte[] metadata = {1, 2, 3};
 
-        FailureNode node = new FailureNode(1, metadata, CoreParseErrorReason.PAYLOAD_TOO_SHORT);
+        FailureNode node = new FailureNode(1, metadata, CoreParseErrorReason.LAYER_TOO_SHORT);
 
         metadata[0] = 99;
 
@@ -51,7 +51,7 @@ class FailureNodeTest {
     void testMetadataIsDefensivelyCopiedInGetter() {
         byte[] metadata = {1, 2, 3};
 
-        FailureNode node = new FailureNode(1, metadata, CoreParseErrorReason.PAYLOAD_TOO_SHORT);
+        FailureNode node = new FailureNode(1, metadata, CoreParseErrorReason.LAYER_TOO_SHORT);
 
         byte[] extracted1 = extractMetadata(node);
         byte[] extracted2 = extractMetadata(node);
@@ -63,7 +63,7 @@ class FailureNodeTest {
 
     @Test
     void testNullMetadataBecomesEmptyArray() {
-        FailureNode node = new FailureNode(1, null, CoreParseErrorReason.PAYLOAD_TOO_SHORT);
+        FailureNode node = new FailureNode(1, null, CoreParseErrorReason.LAYER_TOO_SHORT);
 
         byte[] metadata = extractMetadata(node);
 
@@ -73,7 +73,7 @@ class FailureNodeTest {
 
     @Test
     void testEmptyMetadata() {
-        FailureNode node = new FailureNode(1, new byte[0], CoreParseErrorReason.PAYLOAD_TOO_SHORT);
+        FailureNode node = new FailureNode(1, new byte[0], CoreParseErrorReason.LAYER_TOO_SHORT);
 
         byte[] metadata = extractMetadata(node);
 
@@ -99,34 +99,34 @@ class FailureNodeTest {
     void testCauseIsStored() {
         RuntimeException ex = new RuntimeException("boom");
 
-        FailureNode node = new FailureNode(1, null, CoreParseErrorReason.PAYLOAD_TOO_SHORT, ex);
+        FailureNode node = new FailureNode(1, null, CoreParseErrorReason.LAYER_TOO_SHORT, ex);
 
         assertSame(ex, node.getCause().orElseGet(() -> new IllegalStateException("The cause of the failure has not been saved")));
     }
 
     @Test
     void testCauseCanBeNull() {
-        FailureNode node = new FailureNode(1, null, CoreParseErrorReason.PAYLOAD_TOO_SHORT, null);
+        FailureNode node = new FailureNode(1, null, CoreParseErrorReason.LAYER_TOO_SHORT, null);
 
         assertEquals(Optional.empty(), node.getCause());
     }
 
     @Test
     void testToStringContainsBasicInfo() {
-        FailureNode node = new FailureNode(99, new byte[]{1, 2, 3}, CoreParseErrorReason.PAYLOAD_TOO_SHORT);
+        FailureNode node = new FailureNode(99, new byte[]{1, 2, 3}, CoreParseErrorReason.LAYER_TOO_SHORT);
 
         String str = node.toString();
 
         assertTrue(str.contains("id=99"));
         assertTrue(str.contains("metadataLength=3"));
-        assertTrue(str.contains("PAYLOAD_TOO_SHORT"));
+        assertTrue(str.contains("LAYER_TOO_SHORT"));
     }
 
     @Test
     void testToStringIncludesCauseWhenPresent() {
         IllegalStateException ex = new IllegalStateException();
 
-        FailureNode node = new FailureNode(1, null, CoreParseErrorReason.PAYLOAD_TOO_SHORT, ex);
+        FailureNode node = new FailureNode(1, null, CoreParseErrorReason.LAYER_TOO_SHORT, ex);
 
         String str = node.toString();
 
@@ -135,7 +135,7 @@ class FailureNodeTest {
 
     @Test
     void testToStringWithoutCauseDoesNotFail() {
-        FailureNode node = new FailureNode(1, null, CoreParseErrorReason.PAYLOAD_TOO_SHORT);
+        FailureNode node = new FailureNode(1, null, CoreParseErrorReason.LAYER_TOO_SHORT);
 
         String str = node.toString();
 
@@ -149,7 +149,7 @@ class FailureNodeTest {
             metadata[i] = (byte) i;
         }
 
-        FailureNode node = new FailureNode(5, metadata, CoreParseErrorReason.PAYLOAD_TOO_SHORT);
+        FailureNode node = new FailureNode(5, metadata, CoreParseErrorReason.LAYER_TOO_SHORT);
 
         byte[] extracted = extractMetadata(node);
 
@@ -158,8 +158,8 @@ class FailureNodeTest {
 
     @Test
     void testIdBoundaries() {
-        FailureNode min = new FailureNode(0, new byte[0], CoreParseErrorReason.PAYLOAD_TOO_SHORT);
-        FailureNode max = new FailureNode(255, new byte[0], CoreParseErrorReason.PAYLOAD_TOO_SHORT);
+        FailureNode min = new FailureNode(0, new byte[0], CoreParseErrorReason.LAYER_TOO_SHORT);
+        FailureNode max = new FailureNode(255, new byte[0], CoreParseErrorReason.LAYER_TOO_SHORT);
 
         assertEquals(0, min.getId());
         assertEquals(255, max.getId());
@@ -167,7 +167,7 @@ class FailureNodeTest {
 
     @Test
     void testGetMetadataReturnsReadOnlyBuffer() {
-        FailureNode node = new FailureNode(1, new byte[]{1, 2, 3}, CoreParseErrorReason.PAYLOAD_TOO_SHORT);
+        FailureNode node = new FailureNode(1, new byte[]{1, 2, 3}, CoreParseErrorReason.LAYER_TOO_SHORT);
 
         ByteBuffer buffer = node.getMetadata();
 
@@ -177,7 +177,7 @@ class FailureNodeTest {
 
     @Test
     void testGetMetadataReturnsDifferentBufferInstances() {
-        FailureNode node = new FailureNode(1, new byte[]{1, 2, 3}, CoreParseErrorReason.PAYLOAD_TOO_SHORT);
+        FailureNode node = new FailureNode(1, new byte[]{1, 2, 3}, CoreParseErrorReason.LAYER_TOO_SHORT);
 
         ByteBuffer b1 = node.getMetadata();
         ByteBuffer b2 = node.getMetadata();

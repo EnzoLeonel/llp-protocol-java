@@ -35,6 +35,16 @@ public final class FailureNode implements LLPNode {
     private final Throwable cause;
 
     /**
+     * Creates a FailureNode without a cause and metadata empty.
+     *
+     * @param id          layer identifier
+     * @param errorReason reason for failure (non-null)
+     */
+    public FailureNode(int id, ParseErrorReason errorReason) {
+        this(id, null, errorReason, null);
+    }
+
+    /**
      * Creates a FailureNode without a cause.
      *
      * @param id          layer identifier

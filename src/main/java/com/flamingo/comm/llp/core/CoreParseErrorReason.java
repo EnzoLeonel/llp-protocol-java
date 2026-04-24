@@ -20,12 +20,12 @@ public enum CoreParseErrorReason implements ParseErrorReason {
     /**
      * Metadata length exceeds available buffer.
      */
-    MALFORMED_METADATA_LENGTH("Metadata length exceeds available data"),
+    METADATA_TRUNCATED("Metadata length exceeds available data"),
 
     /**
      * Frame ended before expected fields could be read.
      */
-    PAYLOAD_TOO_SHORT("Unexpected end of payload"),
+    LAYER_TOO_SHORT("Unexpected end of layer"),
 
     /**
      * Layer ID is invalid or out of range.
