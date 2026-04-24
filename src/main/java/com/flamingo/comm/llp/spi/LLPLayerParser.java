@@ -1,5 +1,7 @@
 package com.flamingo.comm.llp.spi;
 
+import java.util.ServiceLoader;
+
 /**
  * Service Provider Interface (SPI) for parsing LLP protocol layers.
  *
@@ -18,13 +20,13 @@ package com.flamingo.comm.llp.spi;
  *
  * <p>
  * Implementations are typically discovered at runtime using Java's
- * {@link java.util.ServiceLoader} mechanism.
+ * {@link ServiceLoader} mechanism.
  * </p>
  *
  * <h2>Responsibilities</h2>
  * <ul>
  *     <li>Declare the layer identifier via {@link #getLayerId()}.</li>
- *     <li>Parse raw metadata and payload into a domain-specific {@link LLPNode}.</li>
+ *     <li>Parse raw layer data into a domain-specific {@link LLPNode}.</li>
  *     <li>Interpret metadata according to the layer's internal specification.</li>
  * </ul>
  *
@@ -32,10 +34,18 @@ package com.flamingo.comm.llp.spi;
  * <ul>
  *     <li>The {@code layerId} must be unique across all registered layers.</li>
  *     <li>The core LLP parser guarantees that metadata and payload are already
- *     correctly extracted according to the protocol format.</li>
- *     <li>The implementation must not modify the provided byte arrays.</li>
- *     <li>If parsing fails, the implementation should throw a runtime exception
- *     or return a fallback node, depending on the design choice.</li>
+ *     extracted according to the protocol format.</li>
+ *     <li>The provided {@link LayerData} buffers must be treated as <b>read-only</b>.</li>
+ *     <li>Implementations must not rely on buffer mutability or shared state.</li>
+ *     <li>If parsing fails, implementations should return a {@link LayerParseResult.Failure}
+ *     or throw an exception if the failure is unexpected.</li>
+ * </ul>
+ *
+ * <h2>Performance Considerations</h2>
+ * <ul>
+ *     <li>The use of {@link java.nio.ByteBuffer} allows zero-copy parsing.</li>
+ *     <li>Implementations should avoid copying data unless necessary.</li>
+ *     <li>If data needs to be retained, it must be explicitly copied.</li>
  * </ul>
  *
  * <h2>Example</h2>
@@ -48,20 +58,25 @@ package com.flamingo.comm.llp.spi;
  *     }
  *
  *     @Override
- *     public LLPNode parse(byte[] metadata, byte[] payload) {
+ *     public LayerParseResult parse(LayerData data) {
+ *         ByteBuffer metadata = data.metadata();
+ *         ByteBuffer payload = data.payload();
+ *
  *         // Interpret metadata (e.g., algorithm, IV, etc.)
- *         return new EncryptionNode(metadata, payload);
+ *         EncryptionNode node = new EncryptionNode(metadata, payload);
+ *
+ *         return new LayerParseResult.Success(node, payload);
  *     }
  * }
  * }</pre>
  *
  * <p>
- * The returned {@link LLPNode} will be integrated into the {@code LLPNodeChain}
+ * The resulting {@link LLPNode} will be integrated into the {@code NodeChain}
  * by the core parser.
  * </p>
  *
  * @see LLPNode
- * @see java.util.ServiceLoader
+ * @see LayerData
  */
 public interface LLPLayerParser {
 
@@ -80,8 +95,8 @@ public interface LLPLayerParser {
      * Parses a layer from its raw metadata and payload.
      *
      * <p>
-     * The core LLP parser is responsible for extracting the metadata and payload
-     * based on the protocol specification:
+     * The core LLP parser provides a {@link LayerData} instance containing
+     * the extracted metadata and payload buffers according to the protocol:
      * </p>
      *
      * <pre>
@@ -89,13 +104,12 @@ public interface LLPLayerParser {
      * </pre>
      *
      * <p>
-     * This method should interpret the metadata and construct an appropriate
-     * {@link LLPNode} implementation.
+     * Implementations should interpret the metadata and construct an appropriate
+     * {@link LLPNode}, optionally transforming the payload for the next layer.
      * </p>
      *
-     * @param metadata raw metadata bytes (never {@code null}, may be empty)
-     * @param payload  raw payload bytes (never {@code null}, may be empty)
-     * @return parsed {@link LLPNode} representing this layer
+     * @param layerData container with metadata and payload buffers (never {@code null})
+     * @return a {@link LayerParseResult} describing the outcome of the parsing
      */
-    LLPNode parse(byte[] metadata, byte[] payload);
+    LayerParseResult parse(LayerData layerData);
 }
