@@ -33,7 +33,7 @@ import java.nio.ByteBuffer;
  *
  * @see LLPLayerParser
  */
-public interface LayerData {
+public interface LayerParseInput {
 
     /**
      * Returns the metadata buffer of the layer.

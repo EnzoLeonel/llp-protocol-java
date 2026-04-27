@@ -35,7 +35,7 @@ import java.util.ServiceLoader;
  *     <li>The {@code layerId} must be unique across all registered layers.</li>
  *     <li>The core LLP parser guarantees that metadata and payload are already
  *     extracted according to the protocol format.</li>
- *     <li>The provided {@link LayerData} buffers must be treated as <b>read-only</b>.</li>
+ *     <li>The provided {@link LayerParseInput} buffers must be treated as <b>read-only</b>.</li>
  *     <li>Implementations must not rely on buffer mutability or shared state.</li>
  *     <li>If parsing fails, implementations should return a {@link LayerParseResult.Failure}
  *     or throw an exception if the failure is unexpected.</li>
@@ -58,7 +58,7 @@ import java.util.ServiceLoader;
  *     }
  *
  *     @Override
- *     public LayerParseResult parse(LayerData data) {
+ *     public LayerParseResult parse(LayerParseInput data) {
  *         ByteBuffer metadata = data.metadata();
  *         ByteBuffer payload = data.payload();
  *
@@ -76,7 +76,7 @@ import java.util.ServiceLoader;
  * </p>
  *
  * @see LLPNode
- * @see LayerData
+ * @see LayerParseInput
  */
 public interface LLPLayerParser {
 
@@ -95,7 +95,7 @@ public interface LLPLayerParser {
      * Parses a layer from its raw metadata and payload.
      *
      * <p>
-     * The core LLP parser provides a {@link LayerData} instance containing
+     * The core LLP parser provides a {@link LayerParseInput} instance containing
      * the extracted metadata and payload buffers according to the protocol:
      * </p>
      *
@@ -108,8 +108,8 @@ public interface LLPLayerParser {
      * {@link LLPNode}, optionally transforming the payload for the next layer.
      * </p>
      *
-     * @param layerData container with metadata and payload buffers (never {@code null})
+     * @param layerParseInput container with metadata and payload buffers (never {@code null})
      * @return a {@link LayerParseResult} describing the outcome of the parsing
      */
-    LayerParseResult parse(LayerData layerData);
+    LayerParseResult parse(LayerParseInput layerParseInput);
 }

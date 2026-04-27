@@ -2,7 +2,7 @@ package com.flamingo.comm.llp.core;
 
 import com.flamingo.comm.llp.spi.LLPLayerParser;
 import com.flamingo.comm.llp.spi.LLPNode;
-import com.flamingo.comm.llp.spi.LayerData;
+import com.flamingo.comm.llp.spi.LayerParseInput;
 import com.flamingo.comm.llp.spi.LayerParseResult;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -144,7 +144,7 @@ class SimpleFrameParserTest {
                 mockNode,
                 ByteBuffer.wrap(new byte[]{0x00})
         );
-        when(mockLayerParser.parse(any(LayerData.class))).thenReturn(successResult);
+        when(mockLayerParser.parse(any(LayerParseInput.class))).thenReturn(successResult);
 
         LLPFrame frame = parser.parse(rawFrame);
 
@@ -160,7 +160,7 @@ class SimpleFrameParserTest {
         setupRawFrame(payload, 0, 0L);
 
         when(provider.get(5)).thenReturn(Optional.of(mockLayerParser));
-        when(mockLayerParser.parse(any(LayerData.class))).thenThrow(new RuntimeException("Simulated plugin crash"));
+        when(mockLayerParser.parse(any(LayerParseInput.class))).thenThrow(new RuntimeException("Simulated plugin crash"));
 
         LLPFrame frame = parser.parse(rawFrame);
 
@@ -379,7 +379,7 @@ class SimpleFrameParserTest {
         when(provider.get(16)).thenReturn(Optional.of(mockLayerParser));
 
         when(mockLayerParser.parse(any())).thenAnswer(invocation -> {
-            LayerData data = invocation.getArgument(0);
+            LayerParseInput data = invocation.getArgument(0);
 
             assertTrue(data.metadata().isReadOnly());
             assertTrue(data.payload().isReadOnly());
@@ -581,7 +581,7 @@ class SimpleFrameParserTest {
         when(provider.get(16)).thenReturn(Optional.of(mockLayerParser));
 
         when(mockLayerParser.parse(any())).thenAnswer(invocation -> {
-            LayerData data = invocation.getArgument(0);
+            LayerParseInput data = invocation.getArgument(0);
             assertEquals(0, data.metadata().remaining()); // Empty metadata
             return new LayerParseResult.Success(mockNode, ByteBuffer.wrap(new byte[]{0x00}));
         });
@@ -741,7 +741,7 @@ class SimpleFrameParserTest {
         when(provider.get(16)).thenReturn(Optional.of(mockLayerParser));
 
         when(mockLayerParser.parse(any())).thenAnswer(invocation -> {
-            LayerData data = invocation.getArgument(0);
+            LayerParseInput data = invocation.getArgument(0);
 
             // Metadata must be exactly [11 22 33]
             assertEquals(3, data.metadata().remaining());

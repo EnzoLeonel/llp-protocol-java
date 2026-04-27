@@ -1,7 +1,7 @@
 package com.flamingo.comm.llp.core;
 
 import com.flamingo.comm.llp.spi.LLPLayerParser;
-import com.flamingo.comm.llp.spi.LayerData;
+import com.flamingo.comm.llp.spi.LayerParseInput;
 import com.flamingo.comm.llp.spi.LayerParseResult;
 import com.flamingo.comm.llp.spi.ParseErrorReason;
 import com.flamingo.comm.llp.util.LayerIds;
@@ -103,7 +103,7 @@ final class SimpleFrameParser implements LLPFrameParser {
                 LLPLayerParser parser = parserOpt.get();
 
                 LayerParseResult result = parser.parse(
-                        new DefaultLayerData(
+                        new DefaultLayerParseInput(
                                 metadata.asReadOnlyBuffer(),
                                 layerPayload.asReadOnlyBuffer()
                         )
@@ -161,12 +161,12 @@ final class SimpleFrameParser implements LLPFrameParser {
     }
 
     /**
-     * Internal LayerData implementation.
+     * Internal LayerParseInput implementation.
      */
-    private record DefaultLayerData(
+    private record DefaultLayerParseInput(
             ByteBuffer metadata,
             ByteBuffer payload
-    ) implements LayerData {
+    ) implements LayerParseInput {
     }
 
     /**
