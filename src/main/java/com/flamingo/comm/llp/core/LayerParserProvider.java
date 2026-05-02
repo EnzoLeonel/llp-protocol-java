@@ -12,12 +12,6 @@ import java.util.Optional;
  * the underlying mechanism used to discover or provide layer parsers.
  * It can be backed by a registry, dependency injection, or custom logic.</p>
  *
- * <p>Typical usage includes:</p>
- * <ul>
- *     <li>Default SPI-based lookup using {@link LayerRegistry}</li>
- *     <li>Custom providers for testing or controlled environments</li>
- * </ul>
- *
  * <p>This interface is designed to be lightweight and easily replaceable,
  * making it suitable for dependency injection and testing.</p>
  */
