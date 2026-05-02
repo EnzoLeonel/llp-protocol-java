@@ -29,7 +29,7 @@ import java.util.ServiceLoader;
  *
  * <p>This class is thread-safe for read operations after initialization.</p>
  */
-public final class LayerRegistry {
+final class LayerRegistry {
 
     private static final Map<Integer, LLPLayerParser> parsers = new HashMap<>();
 
@@ -57,7 +57,7 @@ public final class LayerRegistry {
      * @return an {@link Optional} containing the parser if found,
      *         or empty if no parser is registered for the given ID
      */
-    public static Optional<LLPLayerParser> get(int id) {
+    static Optional<LLPLayerParser> get(int id) {
         return Optional.ofNullable(parsers.get(id));
     }
 }

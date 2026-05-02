@@ -22,7 +22,7 @@ import java.util.Optional;
  * making it suitable for dependency injection and testing.</p>
  */
 @FunctionalInterface
-public interface LayerParserProvider {
+interface LayerParserProvider {
 
     /**
      * Returns a parser for the given layer identifier.
