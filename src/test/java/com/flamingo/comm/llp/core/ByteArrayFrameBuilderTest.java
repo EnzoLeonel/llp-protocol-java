@@ -353,30 +353,30 @@ class ByteArrayFrameBuilderTest {
 
         byte[] result = builder.build(ByteBuffer.allocate(0));
 
-        // Solo el marcador final, sin payload
+        // Only the final marker, without payload
         assertArrayEquals(new byte[]{0x00}, result);
     }
 
     @Test
     void shouldNotMutateOriginalLayersListAfterConstruction() {
-        // Verificar que List.copyOf() aísla al builder de modificaciones externas
+        // Verify that List.copyOf() isolates the builder from external modifications
         List<LLPLayerBuilder> mutableList = new java.util.ArrayList<>();
         builder = new ByteArrayFrameBuilder(mutableList);
 
-        // Agregar una capa DESPUÉS de construir el builder
+        // Add a layer AFTER building the builder
         when(layer1.getLayerId()).thenReturn(1);
         mutableList.add(layer1);
 
         byte[] result = builder.build(ByteBuffer.wrap(new byte[]{0x42}));
 
-        // El builder no debe haber procesado layer1
+        // The builder should not have processed layer1
         assertArrayEquals(new byte[]{0x00, 0x42}, result);
         verify(layer1, never()).build(any());
     }
 
     @Test
     void shouldProduceSameOutputOnMultipleBuilds() {
-        // El builder debe ser reutilizable
+        // The builder should be reusable
         when(layer1.getLayerId()).thenReturn(5);
         when(layer1.build(any())).thenReturn(
                 new LayerBuildResult.Success.UnmodifiedPayload(ByteBuffer.wrap(new byte[]{0x0A}))
@@ -393,8 +393,8 @@ class ByteArrayFrameBuilderTest {
 
     @Test
     void shouldThrowFrameBuildExceptionWithCorrectLayerIdWhenSecondLayerFails() {
-        // Verificar que el layerId en la excepción corresponde a la capa que falló,
-        // no siempre a la primera
+        // Verify that the layerId in the exception corresponds to the failed layer,
+        // not always the first one
         when(layer1.getLayerId()).thenReturn(1);
         when(layer2.getLayerId()).thenReturn(99);
 
@@ -412,7 +412,7 @@ class ByteArrayFrameBuilderTest {
                 () -> builder.build(ByteBuffer.wrap(new byte[]{0x01}))
         );
 
-        assertEquals(99, ex.getLayerId()); // debe ser layer2, no layer1
+        assertEquals(99, ex.getLayerId()); // should be layer2, not layer1
     }
 
     @Test
@@ -435,13 +435,13 @@ class ByteArrayFrameBuilderTest {
 
     @Test
     void shouldPassReadOnlyOrDuplicatePayloadToLayer() {
-        // Un plugin NO debe poder mutar o consumir el currentPayload del builder
+        // A plugin MUST NOT be able to mutate or consume the builder's currentPayload
         when(layer1.getLayerId()).thenReturn(1);
         when(layer1.build(any())).thenAnswer(invocation -> {
             LayerBuildPayload p = invocation.getArgument(0);
             ByteBuffer buf = p.payload();
 
-            // Intentar consumir el buffer
+            // Attempt to consume the buffer
             while (buf.hasRemaining()) buf.get();
 
             return new LayerBuildResult.Success.UnmodifiedPayload(ByteBuffer.allocate(0));
@@ -449,22 +449,22 @@ class ByteArrayFrameBuilderTest {
 
         builder = new ByteArrayFrameBuilder(List.of(layer1));
 
-        // Si el builder no protege currentPayload, el frame no tendrá payload
+        // If the builder does not protect currentPayload, the frame will have no payload
         byte[] result = builder.build(ByteBuffer.wrap(new byte[]{0x10, 0x20}));
 
-        // El payload final debe estar presente aunque el plugin haya consumido su vista
+        // The final payload must be present even if the plugin consumed its view
         byte[] expected = new byte[]{0x01, 0x00, 0x00, 0x10, 0x20};
         assertArrayEquals(expected, result);
     }
 
     @Test
     void shouldHandleFirstLayerAsTransformedPayload() {
-        // TransformedPayload como primera (y única) capa
+        // TransformedPayload as the first (and only) layer
         when(layer1.getLayerId()).thenReturn(128);
         when(layer1.build(any())).thenReturn(
                 new LayerBuildResult.Success.TransformedPayload(
                         ByteBuffer.wrap(new byte[]{(byte) 0xAA, (byte) 0xBB}), // metadata
-                        ByteBuffer.wrap(new byte[]{(byte) 0xFF, (byte) 0xEE})  // payload transformado
+                        ByteBuffer.wrap(new byte[]{(byte) 0xFF, (byte) 0xEE})  // transformed payload
                 )
         );
 
@@ -482,20 +482,20 @@ class ByteArrayFrameBuilderTest {
 
     @Test
     void shouldHandleTwoConsecutiveTransformedPayloadLayers() {
-        // Dos capas transformadoras seguidas — la segunda descarta el header de la primera
+        // Two consecutive transforming layers — the second discards the first one's header
         when(layer1.getLayerId()).thenReturn(130);
         when(layer2.getLayerId()).thenReturn(131);
 
         when(layer1.build(any())).thenReturn(
                 new LayerBuildResult.Success.TransformedPayload(
-                        ByteBuffer.wrap(new byte[]{0x01}),   // metadata layer1
-                        ByteBuffer.wrap(new byte[]{(byte) 0xEE})    // payload cifrado
+                        ByteBuffer.wrap(new byte[]{0x01}),   // layer1 metadata
+                        ByteBuffer.wrap(new byte[]{(byte) 0xEE})    // encrypted payload
                 )
         );
         when(layer2.build(any())).thenReturn(
                 new LayerBuildResult.Success.TransformedPayload(
-                        ByteBuffer.wrap(new byte[]{0x02}),   // metadata layer2
-                        ByteBuffer.wrap(new byte[]{(byte) 0xFF})    // payload comprimido
+                        ByteBuffer.wrap(new byte[]{0x02}),   // layer2 metadata
+                        ByteBuffer.wrap(new byte[]{(byte) 0xFF})    // compressed payload
                 )
         );
 
@@ -503,7 +503,7 @@ class ByteArrayFrameBuilderTest {
 
         byte[] result = builder.build(ByteBuffer.wrap(new byte[]{0x42}));
 
-        // Layer2 descarta el header de layer1, igual que layer1 descartó el header previo
+        // Layer2 discards layer1's header, just as layer1 discarded the previous header
         // [ID=131][LEN=1][02][FINAL][FF]
         assertArrayEquals(new byte[]{
                 (byte) 0x83, 0x01, 0x02,
@@ -518,7 +518,7 @@ class ByteArrayFrameBuilderTest {
         when(layer1.build(any())).thenReturn(
                 new LayerBuildResult.Success.TransformedPayload(
                         ByteBuffer.wrap(new byte[]{(byte) 0xAA}),
-                        ByteBuffer.allocate(0) // payload transformado vacío (caso extremo)
+                        ByteBuffer.allocate(0) // empty transformed payload (edge case)
                 )
         );
 
@@ -526,13 +526,13 @@ class ByteArrayFrameBuilderTest {
 
         byte[] result = builder.build(ByteBuffer.wrap(new byte[]{(byte) 0x99}));
 
-        // [ID=128][LEN=1][AA][FINAL] — sin payload
+        // [ID=128][LEN=1][AA][FINAL] — no payload
         assertArrayEquals(new byte[]{(byte) 0x80, 0x01, (byte) 0xAA, 0x00}, result);
     }
 
     @Test
     void shouldHandleMaxExtendedMetadataLength() {
-        // Metadata de 65535 bytes (máximo del campo extended de 2 bytes)
+        // 65535 bytes metadata (maximum of the 2-byte extended field)
         when(layer1.getLayerId()).thenReturn(1);
 
         byte[] meta = new byte[65535];
@@ -546,16 +546,16 @@ class ByteArrayFrameBuilderTest {
 
         byte[] result = builder.build(ByteBuffer.wrap(new byte[]{0x01}));
 
-        // Verificar el header extendido
+        // Verify the extended header
         assertEquals(0x01, result[0] & 0xFF);          // ID
         assertEquals(0xFF, result[1] & 0xFF);          // extended flag
-        assertEquals(0xFF, result[2] & 0xFF);          // high byte de 65535
-        assertEquals(0xFF, result[3] & 0xFF);          // low byte de 65535
+        assertEquals(0xFF, result[2] & 0xFF);          // high byte of 65535
+        assertEquals(0xFF, result[3] & 0xFF);          // low byte of 65535
 
-        // Verificar tamaño total: 1(ID) + 3(LEN_EXT) + 65535(META) + 1(FINAL) + 1(PAYLOAD)
+        // Verify total size: 1(ID) + 3(LEN_EXT) + 65535(META) + 1(FINAL) + 1(PAYLOAD)
         assertEquals(65541, result.length);
 
-        // Verificar que el contenido de metadata es correcto
+        // Verify that metadata content is correct
         for (int i = 4; i < 4 + 65535; i++) {
             assertEquals((byte) 0x7A, result[i], "Metadata byte mismatch at index " + i);
         }
@@ -563,7 +563,7 @@ class ByteArrayFrameBuilderTest {
 
     @Test
     void shouldPassTransformedPayloadToNextLayer() {
-        // Verificar que la capa siguiente recibe el payload transformado, no el original
+        // Verify that the next layer receives the transformed payload, not the original one
         LLPLayerBuilder layer3 = mock(LLPLayerBuilder.class);
 
         when(layer1.getLayerId()).thenReturn(128);
@@ -584,9 +584,9 @@ class ByteArrayFrameBuilderTest {
             byte[] received = new byte[p.payload().remaining()];
             p.payload().duplicate().get(received);
 
-            // Layer2 debe recibir el payload transformado por layer1
+            // Layer2 must receive the payload transformed by layer1
             assertArrayEquals(transformedBytes, received,
-                    "layer2 debe recibir el payload transformado, no el original");
+                    "layer2 must receive the transformed payload, not the original");
 
             return new LayerBuildResult.Success.UnmodifiedPayload(ByteBuffer.wrap(new byte[]{0x02}));
         });
@@ -603,7 +603,7 @@ class ByteArrayFrameBuilderTest {
 
     @Test
     void shouldCorrectlyOutputLayerOrderWithMixedUnmodifiedTransformed() {
-        // Traza completa: verificar posición exacta de cada byte en el output
+        // Full trace: verify exact position of each byte in the output
         // layers: [routing(unmod), encryption(transform), compression(unmod)]
         LLPLayerBuilder compressionLayer = mock(LLPLayerBuilder.class);
 
@@ -632,7 +632,7 @@ class ByteArrayFrameBuilderTest {
 
         byte[] result = builder.build(ByteBuffer.wrap(new byte[]{(byte) 0xFF}));
 
-        // layer1 header fue descartado por la transformación de layer2
+        // layer1 header was discarded by layer2's transformation
         // Outer → inner: compression → encryption → FINAL → encrypted blob
         assertArrayEquals(new byte[]{
                 0x14, 0x01, 0x30,               // compression (ID=20, LEN=1, meta=[30])
@@ -644,7 +644,7 @@ class ByteArrayFrameBuilderTest {
 
     @Test
     void shouldHandleMetadataLengthExactly256WithExtendedFormat() {
-        // 256 = primer valor que necesita el byte high != 0x00 en extended
+        // 256 = first value requiring high byte != 0x00 in extended
         when(layer1.getLayerId()).thenReturn(1);
 
         byte[] meta = new byte[256];
@@ -657,8 +657,8 @@ class ByteArrayFrameBuilderTest {
 
         assertEquals(0x01, result[0] & 0xFF);  // ID
         assertEquals(0xFF, result[1] & 0xFF);  // extended flag
-        assertEquals(0x01, result[2] & 0xFF);  // high byte de 256 (0x01)
-        assertEquals(0x00, result[3] & 0xFF);  // low byte  de 256 (0x00)
+        assertEquals(0x01, result[2] & 0xFF);  // high byte of 256 (0x01)
+        assertEquals(0x00, result[3] & 0xFF);  // low byte of 256 (0x00)
 
         // Total: 1 + 3 + 256 + 1 + 1 = 262
         assertEquals(262, result.length);
@@ -666,13 +666,13 @@ class ByteArrayFrameBuilderTest {
 
     @Test
     void shouldNotInvokeAnyLayerWhenLayerListIsEmpty() {
-        // Con lista vacía no se debe llamar a ningún builder
+        // With an empty list, no builder should be called
         builder = new ByteArrayFrameBuilder(List.of());
 
         byte[] result = builder.build(ByteBuffer.wrap(new byte[]{0x42}));
 
         assertArrayEquals(new byte[]{0x00, 0x42}, result);
-        // No hay mocks que verificar, pero el test confirma que no lanza excepción
+        // No mocks to verify, but the test confirms no exception is thrown
     }
 
     @Test
@@ -690,13 +690,13 @@ class ByteArrayFrameBuilderTest {
                 () -> builder.build(ByteBuffer.wrap(new byte[]{0x01}))
         );
 
-        // layer2 nunca debe haberse llamado
+        // layer2 should never have been called
         verify(layer2, never()).build(any());
     }
 
     @Test
     void shouldHandleLayerWithExactly254ByteMetadataAndVerifyRoundTrip() {
-        // 254 es el último valor sin flag extendida — probar que el byte no se confunde con 0xFF
+        // 254 is the last value without extended flag — test that the byte is not confused with 0xFF
         when(layer1.getLayerId()).thenReturn(1);
 
         byte[] meta = new byte[254];
@@ -710,14 +710,14 @@ class ByteArrayFrameBuilderTest {
         byte[] result = builder.build(ByteBuffer.wrap(new byte[]{(byte) 0xAB}));
 
         assertEquals(0x01,  result[0] & 0xFF); // ID
-        assertEquals(254,   result[1] & 0xFF); // LEN sin extended
-        // Verificar que el byte 1 NO es 0xFF (lo que activaría extended en el parser)
+        assertEquals(254,   result[1] & 0xFF); // LEN without extended
+        // Verify that byte 1 is NOT 0xFF (which would trigger extended in the parser)
         assertNotEquals(0xFF, result[1] & 0xFF);
 
         // Total: 1 + 1 + 254 + 1 + 1 = 258
         assertEquals(258, result.length);
 
-        // Verificar contenido de metadata
+        // Verify metadata content
         for (int i = 0; i < 254; i++) {
             assertEquals((byte)(i & 0xFF), result[2 + i]);
         }
