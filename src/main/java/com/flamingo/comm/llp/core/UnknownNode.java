@@ -3,6 +3,8 @@ package com.flamingo.comm.llp.core;
 import com.flamingo.comm.llp.spi.LLPNode;
 
 import java.nio.ByteBuffer;
+import java.util.Arrays;
+import java.util.Objects;
 
 /**
  * Represents an unknown or unsupported LLP layer.
@@ -45,5 +47,17 @@ public final class UnknownNode implements LLPNode {
                 "id=" + id +
                 ", metadataLength=" + metadata.length +
                 '}';
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof UnknownNode that)) return false;
+        return id == that.id && Arrays.equals(metadata, that.metadata);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(id, Arrays.hashCode(metadata));
     }
 }

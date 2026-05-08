@@ -4,6 +4,7 @@ import com.flamingo.comm.llp.spi.LLPNode;
 import com.flamingo.comm.llp.spi.ParseErrorReason;
 
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -116,5 +117,19 @@ public final class FailureNode implements LLPNode {
                 ", metadataLength=" + metadata.length +
                 (cause != null ? ", cause=" + cause.getClass().getSimpleName() : "") +
                 '}';
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof FailureNode that)) return false;
+        return id == that.id &&
+                Objects.equals(errorReason, that.errorReason) &&
+                Arrays.equals(metadata, that.metadata);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(id, errorReason, Arrays.hashCode(metadata));
     }
 }

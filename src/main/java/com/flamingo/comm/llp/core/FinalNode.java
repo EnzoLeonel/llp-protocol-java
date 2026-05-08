@@ -3,6 +3,7 @@ package com.flamingo.comm.llp.core;
 import com.flamingo.comm.llp.spi.LLPNode;
 
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.HexFormat;
 import java.util.Locale;
 
@@ -84,5 +85,17 @@ public final class FinalNode implements LLPNode {
         return "FinalNode{" +
                 "payloadHex=" + HexFormat.of().formatHex(payload).toUpperCase(Locale.ROOT) +
                 '}';
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof FinalNode that)) return false;
+        return Arrays.equals(payload, that.payload);
+    }
+
+    @Override
+    public int hashCode() {
+        return Arrays.hashCode(payload);
     }
 }
