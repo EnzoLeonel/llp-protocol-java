@@ -1,4 +1,4 @@
-package com.flamingo.comm.llp.crc;
+package com.flamingo.comm.llp.util;
 
 /**
  * Implementation of CRC16-CCITT.
