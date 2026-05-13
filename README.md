@@ -37,7 +37,7 @@ Añade la dependencia a tu `pom.xml`:
 <dependency>
     <groupId>com.flamingo</groupId>
     <artifactId>llp-protocol</artifactId>
-    <version>3.0.0</version>
+    <version>3.0.1</version>
 </dependency>
 
 ```
@@ -324,7 +324,7 @@ Las nuevas capas de protocolo se implementan como módulos de Maven independient
 <dependency>
     <groupId>com.flamingo</groupId>
     <artifactId>llp-protocol</artifactId>
-    <version>3.0.0</version>
+    <version>3.0.1</version>
 </dependency>
 
 ```
@@ -454,17 +454,17 @@ if (deepest instanceof FinalNode final) {
 
 ## 🔄 Migración desde v2.x
 
-La versión 3.0 introduce un nuevo modelo de tramas en capas y una API pública rediseñada. La API de la v2 ha sido eliminada.
+La versión 3 introduce un nuevo modelo de tramas en capas y una API pública rediseñada. La API de la v2 ha sido eliminada.
 
-| v2.x | v3.0 |
-| --- | --- |
-| `LLP.newParser()` | `LLP.incrementalParser().build()` |
-| `parser.processByte(b)` | `parser.feed(b)` + `parser.pollFrames()` |
-| `parser.addListener(...)` | Maneja los resultados desde `pollFrames()` / `pollErrors()` |
-| `LLP.buildData(type, payload)` | `LLP.frameBuilder().build()` + `.build(payload)` |
-| `LLPFrame.getType()` | Eliminado — el tipo de mensaje es ahora un asunto de la capa |
-| `LLPFrame.getId()` | Eliminado — el ID de transacción es ahora un asunto de la capa |
-| `LLPMessageType` | Eliminado — define los tipos de mensajes en tu capa |
+| v2.x | v3.x                                                                  |
+| --- |-----------------------------------------------------------------------|
+| `LLP.newParser()` | `LLP.incrementalParser().build()`                                     |
+| `parser.processByte(b)` | `parser.feed(b)` + `parser.pollFrames()`                              |
+| `parser.addListener(...)` | Maneja los resultados desde `pollFrames()` / `pollErrors()`           |
+| `LLP.buildData(type, payload)` | `LLP.frameBuilder().build()` + `.build(payload)`                      |
+| `LLPFrame.getType()` | Eliminado — el tipo de mensaje es ahora un asunto de la capa          |
+| `LLPFrame.getId()` | Eliminado — el ID de transacción es ahora un asunto de la capa        |
+| `LLPMessageType` | Eliminado — define los tipos de mensajes en tu capa                   |
 | Formato de trama única | Modelo de cebolla en capas (layered onion model) con capas opcionales |
 
 El formato de la trama cambió significativamente en la v3 para soportar el modelo de capas. Las tramas v2 y v3 **no son compatibles a nivel de red (wire-compatible)**.
@@ -528,8 +528,8 @@ Creado por **EnzoLeonel**
 
 ---
 
-**Versión:** 3.0.0
+**Versión:** 3.0.1
 
-**Última actualización:** 2026-05-08
+**Última actualización:** 2026-05-13
 
 **Objetivo Java:** 21+
