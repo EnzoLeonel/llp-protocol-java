@@ -108,6 +108,7 @@ public final class LLPTransportDeframer {
                 if (b == MAGIC_1) {
                     state = State.WAIT_MAGIC2;
                 }
+                lastByteTime = System.currentTimeMillis();
                 return null;
             }
         }

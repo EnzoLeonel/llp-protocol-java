@@ -144,6 +144,35 @@ class LLPTransportDeframerTest {
     }
 
     @Test
+    void testTimeoutThenResyncDoesNotCascadeTimeout() throws InterruptedException {
+        byte[] payload = new byte[]{0x00};
+        byte[] fullFrame = buildFrame(payload);
+
+        deframer.processByte(fullFrame[0]);
+        deframer.processByte(fullFrame[1]);
+
+        Thread.sleep(2100);
+
+        deframer.processByte((byte) 0xAA);
+
+        LLPRawFrame result = null;
+        for (int i = 1; i < fullFrame.length; i++) {
+            LLPRawFrame f = deframer.processByte(fullFrame[i]);
+            if (f != null) result = f;
+        }
+
+        assertNotNull(result,
+            "Frame must complete after timeout+resync");
+        ByteBuffer buf = result.payload();
+        byte[] extracted = new byte[buf.remaining()];
+        buf.get(extracted);
+        assertArrayEquals(payload, extracted);
+
+        assertEquals(1, deframer.getStatistics().getTimeouts(),
+            "Exactly 1 timeout — no cascading");
+    }
+
+    @Test
     void testPayloadExceedsMaximum() {
         byte[] payload = new byte[1025]; // max is 1024
         byte[] frame = buildFrame(payload);
