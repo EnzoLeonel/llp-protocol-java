@@ -12,7 +12,7 @@
 
   <name>LLP Core</name>
   <description>LLP transport layer core with plugin-based extensibility via SPI</description>
-  <url>https://github.com/EnzoLeonel/llp-protocol-java</url>
+  <url>https://github.com/flamicomm/llp-protocol-java</url>
 
   <licenses>
     <license>
@@ -24,16 +24,16 @@
 
   <developers>
     <developer>
-      <id>EnzoLeonel</id>
-      <name>Enzo Leonel</name>
-      <url>https://github.com/EnzoLeonel</url>
+      <id>flamicomm</id>
+      <name>Flamingo Communications</name>
+      <url>https://github.com/flamicomm</url>
     </developer>
   </developers>
 
   <scm>
-    <connection>scm:git:https://github.com/EnzoLeonel/llp-protocol-java.git</connection>
-    <developerConnection>scm:git:https://github.com/EnzoLeonel/llp-protocol-java.git</developerConnection>
-    <url>https://github.com/EnzoLeonel/llp-protocol-java</url>
+    <connection>scm:git:https://github.com/flamicomm/llp-protocol-java.git</connection>
+    <developerConnection>scm:git:https://github.com/flamicomm/llp-protocol-java.git</developerConnection>
+    <url>https://github.com/flamicomm/llp-protocol-java</url>
     <tag>HEAD</tag>
   </scm>
 
@@ -196,8 +196,8 @@
   <distributionManagement>
     <repository>
       <id>github</id>
-      <name>GitHub EnzoLeonel Apache Maven Packages</name>
-      <url>https://maven.pkg.github.com/EnzoLeonel/llp-protocol-java</url>
+      <name>GitHub Flamicomm Apache Maven Packages</name>
+      <url>https://maven.pkg.github.com/flamicomm/llp-protocol-java</url>
     </repository>
   </distributionManagement>
 
