@@ -1,9 +1,9 @@
 # Protocolo LLP — Implementación en Java
 
-[![Maven Package](https://github.com/EnzoLeonel/llp-protocol-java/actions/workflows/maven-publish.yml/badge.svg)](https://github.com/EnzoLeonel/llp-protocol-java/actions/workflows/maven-publish.yml)
+[![Maven Package](https://github.com/flamicomm/llp-protocol-java/actions/workflows/maven-publish.yml/badge.svg)](https://github.com/flamicomm/llp-protocol-java/actions/workflows/maven-publish.yml)
 [![Licencia: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Java 21](https://img.shields.io/badge/Java-21-blue)](https://www.oracle.com/java/)
-[![codecov](https://codecov.io/github/EnzoLeonel/llp-protocol/graph/badge.svg?token=A6Q68GQDBJ)](https://codecov.io/github/EnzoLeonel/llp-protocol)
+[![codecov](https://codecov.io/github/flamicomm/llp-protocol/graph/badge.svg?token=A6Q68GQDBJ)](https://codecov.io/github/flamicomm/llp-protocol)
 
 Implementación en **Java 21** de **LLP (Layered Link Protocol)** — un protocolo de comunicación robusto, eficiente y extensible diseñado para la comunicación de dispositivos IoT. LLP está construido en torno a un modelo de cebolla en capas (layered onion model), donde cada trama puede transportar capas de protocolo opcionales sobre la capa de transporte obligatoria.
 
@@ -72,7 +72,7 @@ Crea un token con el permiso `read:packages`.
     <repository>
         <id>github</id>
         <name>GitHub Packages</name>
-        <url>https://maven.pkg.github.com/EnzoLeonel/llp-protocol-java</url>
+        <url>https://maven.pkg.github.com/flamicomm/llp-protocol-java</url>
     </repository>
 </repositories>
 
@@ -524,7 +524,7 @@ Licencia MIT — ver [LICENSE](https://www.google.com/search?q=LICENSE)
 
 ## ✍️ Autor
 
-Creado por **EnzoLeonel**
+Creado por **flamicomm**
 
 ---
 

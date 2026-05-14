@@ -41,7 +41,7 @@
     <repository>
       <id>github</id>
       <name>GitHub Packages</name>
-      <url>https://maven.pkg.github.com/EnzoLeonel/llp-protocol-java</url>
+      <url>https://maven.pkg.github.com/flamicomm/llp-protocol-java</url>
     </repository>
   </repositories>
 </project>
