@@ -1,13 +1,11 @@
 package com.flamingo.comm.llp.core;
 
-import com.flamingo.comm.llp.spi.LLPLayerParser;
-import com.flamingo.comm.llp.spi.LayerParseInput;
-import com.flamingo.comm.llp.spi.LayerParseResult;
-import com.flamingo.comm.llp.spi.ParseErrorReason;
+import com.flamingo.comm.llp.spi.*;
 import com.flamingo.comm.llp.util.LayerIds;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.util.List;
 import java.util.Optional;
 
 final class SimpleFrameParser implements LLPFrameParser {
@@ -30,6 +28,7 @@ final class SimpleFrameParser implements LLPFrameParser {
         buffer.order(ByteOrder.BIG_ENDIAN);
 
         NodeChain.Builder chainBuilder = new NodeChain.Builder();
+        boolean foundFinal = false;
 
         loop:while (buffer.hasRemaining()) {
 
@@ -38,6 +37,7 @@ final class SimpleFrameParser implements LLPFrameParser {
             // Final layer (ID = 0)
             if (LayerIds.isFinal(layerId)) {
                 chainBuilder.add(FinalNode.of(buffer.slice()));
+                foundFinal = true;
                 break loop;
             }
 
@@ -150,6 +150,23 @@ final class SimpleFrameParser implements LLPFrameParser {
                 }
 
                 buffer = layerPayload;
+            }
+        }
+
+        if (!foundFinal && !chainBuilder.build().asList().isEmpty()) {
+            List<LLPNode> nodes = chainBuilder.build().asList();
+            LLPNode last = nodes.getLast();
+            if (last instanceof FailureNode) {
+                // Chain already terminated with a failure — no need to add MISSING_FINAL_NODE
+            } else if (last instanceof FinalNode) {
+                // Should not happen since foundFinal == false, but guard anyway
+            } else {
+                // Chain ended because buffer ran out, but not due to a parse error.
+                // The layer chain is missing a FinalNode.
+                chainBuilder.add(new FailureNode(
+                        0,
+                        CoreParseErrorReason.MISSING_FINAL_NODE
+                ));
             }
         }
 

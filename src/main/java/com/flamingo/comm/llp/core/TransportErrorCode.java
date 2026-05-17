@@ -11,7 +11,9 @@ public enum TransportErrorCode {
     PAYLOAD_LEN_INVALID((byte) 0x02, "Payload length exceeds maximum"),
     TIMEOUT((byte) 0x03, "Frame timeout - incomplete frame"),
     SYNC_ERROR((byte) 0x04, "Synchronization error"),
-    BUFFER_FULL((byte) 0x05, "Buffer overflow");
+    BUFFER_FULL((byte) 0x05, "Buffer overflow"),
+    LAYER_MALFORMED((byte) 0x06, "Layer chain malformed"),
+    TRANSFORM_NO_HANDLER((byte) 0x07, "No handler registered for transform layer");
 
     private final byte code;
     private final String description;
