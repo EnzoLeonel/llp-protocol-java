@@ -36,10 +36,9 @@ Añade la dependencia a tu `pom.xml`:
 ```xml
 <dependency>
     <groupId>com.flamingo</groupId>
-    <artifactId>llp-protocol</artifactId>
-    <version>3.0.1</version>
+    <artifactId>llp-core</artifactId>
+    <version>3.1.0</version>
 </dependency>
-
 ```
 
 ### Autenticación en GitHub Packages
@@ -52,7 +51,7 @@ Ve a: GitHub → Settings → Developer Settings → Personal Access Tokens
 
 Crea un token con el permiso `read:packages`.
 
-**2. Configura `~/.m2/settings.xml**`**
+**2. Configura `~/.m2/settings.xml`**
 
 ```xml
 <servers>
@@ -62,10 +61,9 @@ Crea un token con el permiso `read:packages`.
         <password>TU_TOKEN</password>
     </server>
 </servers>
-
 ```
 
-**3. Añade el repositorio a tu `pom.xml**`
+**3. Añade el repositorio a tu `pom.xml`**
 
 ```xml
 <repositories>
@@ -75,14 +73,12 @@ Crea un token con el permiso `read:packages`.
         <url>https://maven.pkg.github.com/flamicomm/llp-protocol-java</url>
     </repository>
 </repositories>
-
 ```
 
 **4. Verifica**
 
 ```bash
 mvn clean install
-
 ```
 
 ---
@@ -102,16 +98,18 @@ LLPFrameBuilder<byte[]> builder = LLP.frameBuilder().build();
 
 byte[] frame = builder.build(ByteBuffer.wrap("hello device".getBytes()));
 // uart.write(frame); // Example: send via your preferred transport
-
 ```
 
 ### Análisis incremental de un flujo de datos (entrada / inbound)
 
 ```java
 import com.flamingo.comm.llp.core.LLP;
-import com.flamingo.comm.llp.core.LLPIncrementalParser;
 import com.flamingo.comm.llp.core.LLPFrame;
+import com.flamingo.comm.llp.core.LLPIncrementalParser;
 import com.flamingo.comm.llp.core.FinalNode;
+import com.flamingo.comm.llp.core.FailureNode;
+import com.flamingo.comm.llp.core.UnknownNode;
+import com.flamingo.comm.llp.core.TransportErrorCode;
 
 LLPIncrementalParser parser = LLP.incrementalParser()
         .maxPayloadBytes(4096)
@@ -125,26 +123,25 @@ while ((b = in.read()) != -1) {
     parser.feed((byte) b);
 
     for (LLPFrame frame : parser.pollFrames()) {
-        // Navigate the node chain
-        frame.chain().visit(visitor -> {
-            visitor.onFinalNode(node -> {
+        // Navigate the node chain using the visitor pattern
+        frame.chain().visit(visitor -> visitor
+            .on(FinalNode.class, node -> {
                 byte[] payload = new byte[node.getPayload().remaining()];
                 node.getPayload().get(payload);
                 System.out.println("Received: " + new String(payload));
-            });
-            visitor.onUnknownNode(node ->
-                System.out.println("Unknown layer skipped: ID=" + node.getId()));
-            visitor.onFailureNode(node ->
+            })
+            .on(UnknownNode.class, node ->
+                System.out.println("Unknown layer skipped: ID=" + node.getId()))
+            .on(FailureNode.class, node ->
                 System.err.println("Layer failed: ID=" + node.getId()
-                    + " reason=" + node.getErrorReason()));
-        });
+                    + " reason=" + node.getErrorReason()))
+        );
     }
 
     for (TransportErrorCode error : parser.pollErrors()) {
         System.err.println("Transport error: " + error);
     }
 }
-
 ```
 
 ### Análisis de tramas completas (no streaming)
@@ -154,7 +151,6 @@ LLPFrameParser parser = LLP.frameParser().build();
 
 // rawFrame is an LLPRawFrame produced by LLPTransportDeframer
 LLPFrame frame = parser.parse(rawFrame);
-
 ```
 
 ### Uso de plugins de capas
@@ -181,7 +177,6 @@ parsed.chain().getNode(RoutingNode.class).ifPresent(node -> {
     System.out.println("Device: " + node.getMetadata().deviceId());
     System.out.println("Group:  " + node.getMetadata().group());
 });
-
 ```
 
 ---
@@ -194,7 +189,6 @@ El envoltorio más externo validado por la capa de transporte:
 
 ```
 [MAGIC 2B][LENGTH 2B][PAYLOAD NB][CRC16 2B]
-
 ```
 
 | Campo | Tamaño | Valor / Descripción |
@@ -214,7 +208,6 @@ El payload contiene una cadena recursiva de capas opcionales seguida de los dato
 [LAYER_ID][META_LENGTH][METADATA ...][  next layer or final  ]
                                       ↓
                               [0x00][RAW PAYLOAD BYTES]
-
 ```
 
 | Campo | Tamaño | Descripción |
@@ -231,7 +224,7 @@ El payload contiene una cadena recursiva de capas opcionales seguida de los dato
 | `0` | **Final node (Nodo final)** — no hay más capas; los bytes restantes son el payload crudo de la aplicación. |
 | `1–127` | **Passthrough layer (Capa de paso)** — los metadatos pueden omitirse; el contenido del payload no cambia. |
 | `128–254` | **Transform layer (Capa de transformación)** — el payload fue modificado (encriptado, comprimido, etc.); no puede omitirse sin la librería de la capa. |
-| `255` | Reservado |
+| `255` | **Reservado** — reservado para uso futuro; los parsers deben tratarlo como desconocido y saltarlo si es posible. |
 
 ---
 
@@ -250,19 +243,34 @@ com.flamingo.comm.llp/
 │   ├── LLPFrame.java              # Parsed frame with node chain
 │   ├── LLPRawFrame.java           # Transport-level validated frame
 │   ├── NodeChain.java             # Immutable ordered chain of nodes
+│   ├── NodeVisitor.java           # Type-safe visitor for node traversal
 │   ├── FinalNode.java             # Terminal node (raw payload)
 │   ├── UnknownNode.java           # Skipped unknown passthrough layer
-│   └── FailureNode.java           # Failed-to-parse layer node
+│   ├── FailureNode.java           # Failed-to-parse layer node
+│   ├── ByteArrayFrameBuilder.java # Default frame builder (byte[] output)
+│   ├── CoreParseErrorReason.java  # Core-level parse error reasons
+│   ├── TransportErrorCode.java    # Transport-level error codes
+│   ├── FrameBuildException.java   # Exception for frame build failures
+│   ├── LayerParserProvider.java    # Functional interface for parser lookup
+│   ├── LayerParserRegistry.java   # SPI-based layer parser registry
+│   └── SimpleFrameParser.java     # Internal default frame parser
 │
-└── spi/                           # SPI contracts for layer plugins
-    ├── LLPLayerParser.java        # Interface for inbound layer parsing
-    ├── LLPLayerBuilder.java       # Interface for outbound layer building
-    ├── LLPNode.java               # Base node interface
-    ├── LayerParseResult.java      # Sealed result type (Success | Failure)
-    ├── LayerBuildResult.java      # Sealed result type (UnmodifiedPayload | TransformedPayload | Failure)
-    ├── LayerParseInput.java       # Read-only metadata + payload for parsing
-    └── LayerBuildPayload.java     # Read-only payload for building
-
+├── spi/                           # SPI contracts for layer plugins
+│   ├── LLPLayerParser.java        # Interface for inbound layer parsing
+│   ├── LLPLayerBuilder.java       # Interface for outbound layer building
+│   ├── LLPNode.java               # Base node interface
+│   ├── LayerParseResult.java      # Sealed result type (Success | Failure)
+│   ├── LayerBuildResult.java      # Sealed result type (Success.UnmodifiedPayload | Success.TransformedPayload | Failure)
+│   ├── LayerParseInput.java       # Read-only metadata + payload for parsing
+│   ├── LayerBuildPayload.java      # Read-only payload for building
+│   ├── ParseErrorReason.java      # Interface for parse error reasons
+│   └── BuildErrorReason.java      # Interface for build error reasons
+│
+└── util/                          # Internal utilities
+    ├── ByteWriter.java            # Utility for writing byte sequences
+    ├── CRC16CCITT.java            # CRC16-CCITT calculation
+    ├── LayerIds.java              # Layer ID rules and classification
+    └── Statistics.java            # Transport statistics tracking
 ```
 
 ### Puntos de entrada
@@ -285,7 +293,6 @@ LLPIncrementalParser incremental = LLP.incrementalParser()
         .maxPayloadBytes(8192)
         .timeoutMs(1000)
         .build();
-
 ```
 
 ### Tubería de entrada (Inbound pipeline)
@@ -296,7 +303,6 @@ byte stream
           └── LLPRawFrame
                 └── SimpleFrameParser   (layer chain parsing via SPI registry)
                       └── LLPFrame  →  NodeChain  →  [Node, Node, ..., FinalNode]
-
 ```
 
 ### Tubería de salida (Outbound pipeline)
@@ -307,7 +313,6 @@ ByteBuffer payload
           └── byte[] (layered payload)
                 └── LLPTransportFramer   (magic · length · stuffing · CRC)
                       └── byte[] (transport frame ready to transmit)
-
 ```
 
 ---
@@ -323,10 +328,9 @@ Las nuevas capas de protocolo se implementan como módulos de Maven independient
 ```xml
 <dependency>
     <groupId>com.flamingo</groupId>
-    <artifactId>llp-protocol</artifactId>
-    <version>3.0.1</version>
+    <artifactId>llp-core</artifactId>
+    <version>3.1.0</version>
 </dependency>
-
 ```
 
 **2. Implementa `LLPLayerParser` (entrada)**
@@ -347,17 +351,20 @@ public class RoutingLayerParser implements LLPLayerParser {
             String group    = reader.readUtf8(reader.readUInt8());
             int    ttl      = reader.readUInt8();
 
-            return LayerParseResult.success(
+            return new LayerParseResult.Success(
                 new RoutingNode(new RoutingMetadata(deviceId, group, ttl)),
                 input.payload()  // passthrough: payload unchanged
             );
         } catch (Exception e) {
-            return LayerParseResult.failure(ParseErrorReason.INVALID_METADATA);
+            return new LayerParseResult.Failure(
+                MyErrorReason.INVALID_METADATA
+            );
         }
     }
 }
-
 ```
+
+> **Nota:** `LayerParseResult.Success` y `LayerParseResult.Failure` son records internos de la sealed interface `LayerParseResult`. Usa sus constructores directamente. Para errores, puedes implementar `ParseErrorReason` con tus propios enums, o usar `CoreParseErrorReason` del paquete `core`.
 
 **3. Implementa `LLPLayerBuilder` (salida)**
 
@@ -387,10 +394,9 @@ public class RoutingLayerBuilder implements LLPLayerBuilder {
                 .toBytes();
 
         // Passthrough: payload is not modified
-        return LayerBuildResult.unmodified(ByteBuffer.wrap(metadata));
+        return new LayerBuildResult.Success.UnmodifiedPayload(ByteBuffer.wrap(metadata));
     }
 }
-
 ```
 
 **4. Registro vía SPI**
@@ -399,7 +405,6 @@ Crea el archivo `src/main/resources/META-INF/services/com.flamingo.comm.llp.spi.
 
 ```
 com.example.llp.routing.RoutingLayerParser
-
 ```
 
 La librería base lo descubrirá y registrará automáticamente al inicio.
@@ -410,6 +415,7 @@ La librería base lo descubrirá y registrará automáticamente al inicio.
 | --- | --- | --- | --- |
 | `1–127` | Passthrough | Sin cambios — puede omitirse | No |
 | `128–254` | Transform | Modificado (encriptado/comprimido) | Sí |
+| `255` | Reservado | Tratado como desconocido y saltado | No |
 
 ---
 
@@ -421,18 +427,21 @@ Tras el análisis, el `NodeChain` de la trama contiene una secuencia ordenada de
 | --- | --- | --- |
 | `LLPNode` | Implementaciones SPI (capas personalizadas) | `getId()` |
 | `FinalNode` | Siempre — marca el final de la cadena con bytes crudos | `getId()`, `getPayload()` |
-| `UnknownNode` | El Layer ID no tiene manejador y es de tipo passthrough | `getId()`, `getMetadata()` |
-| `FailureNode` | Falló el análisis de la capa (error de plugin o metadatos corruptos) | `getId()`, `getErrorReason()`, `getCause()`, `getMetadata()` |
+| `UnknownNode` | El Layer ID no tiene manejador y es de tipo passthrough o reservado | `getId()`, `getMetadata()` |
+| `FailureNode` | Falló el análisis de la capa (error de plugin, metadatos corruptos o falta de FinalNode) | `getId()`, `getErrorReason()`, `getCause()`, `getMetadata()` |
 
 ### Navegación por la cadena
 
 ```java
-// Option A — visitor (recommended for production code)
-frame.chain().visit(visitor -> {
-    visitor.onFinalNode(node -> handlePayload(node.getPayload()));
-    visitor.onUnknownNode(node -> log.debug("Skipped layer {}", node.getId()));
-    visitor.onFailureNode(node -> log.warn("Failed layer {}: {}", node.getId(), node.getErrorReason()));
-});
+// Option A — visitor pattern (recommended for production code)
+frame.chain().visit(visitor -> visitor
+    .on(FinalNode.class, node -> handlePayload(node.getPayload()))
+    .on(UnknownNode.class, node ->
+        System.out.println("Skipped layer " + node.getId()))
+    .on(FailureNode.class, node ->
+        System.err.println("Failed layer " + node.getId()
+            + ": " + node.getErrorReason()))
+);
 
 // Option B — find a specific node type
 frame.chain().getNode(RoutingNode.class)
@@ -447,7 +456,6 @@ LLPNode deepest = frame.chain().getDeepestNode();
 if (deepest instanceof FinalNode final) {
     process(final.getPayload());
 }
-
 ```
 
 ---
@@ -456,15 +464,15 @@ if (deepest instanceof FinalNode final) {
 
 La versión 3 introduce un nuevo modelo de tramas en capas y una API pública rediseñada. La API de la v2 ha sido eliminada.
 
-| v2.x | v3.x                                                                  |
-| --- |-----------------------------------------------------------------------|
-| `LLP.newParser()` | `LLP.incrementalParser().build()`                                     |
-| `parser.processByte(b)` | `parser.feed(b)` + `parser.pollFrames()`                              |
-| `parser.addListener(...)` | Maneja los resultados desde `pollFrames()` / `pollErrors()`           |
-| `LLP.buildData(type, payload)` | `LLP.frameBuilder().build()` + `.build(payload)`                      |
-| `LLPFrame.getType()` | Eliminado — el tipo de mensaje es ahora un asunto de la capa          |
-| `LLPFrame.getId()` | Eliminado — el ID de transacción es ahora un asunto de la capa        |
-| `LLPMessageType` | Eliminado — define los tipos de mensajes en tu capa                   |
+| v2.x | v3.x |
+| --- | --- |
+| `LLP.newParser()` | `LLP.incrementalParser().build()` |
+| `parser.processByte(b)` | `parser.feed(b)` + `parser.pollFrames()` |
+| `parser.addListener(...)` | Maneja los resultados desde `pollFrames()` / `pollErrors()` |
+| `LLP.buildData(type, payload)` | `LLP.frameBuilder().build()` + `.build(payload)` |
+| `LLPFrame.getType()` | Eliminado — el tipo de mensaje es ahora un asunto de la capa |
+| `LLPFrame.getId()` | Eliminado — el ID de transacción es ahora un asunto de la capa |
+| `LLPMessageType` | Eliminado — define los tipos de mensajes en tu capa |
 | Formato de trama única | Modelo de cebolla en capas (layered onion model) con capas opcionales |
 
 El formato de la trama cambió significativamente en la v3 para soportar el modelo de capas. Las tramas v2 y v3 **no son compatibles a nivel de red (wire-compatible)**.
@@ -480,6 +488,8 @@ mvn test
 # Run tests with coverage report
 mvn verify
 
+# Run tests including slow timing vectors
+mvn test -Pslow-tests
 ```
 
 La suite de pruebas cubre:
@@ -490,6 +500,7 @@ La suite de pruebas cubre:
 * Análisis incremental (streaming) a través de los tres métodos `feed()`.
 * Registro SPI (detección de duplicados, registro manual, descubrimiento SPI).
 * Casos límite (edge cases): payloads vacíos, longitudes de metadatos extendidas, fallos no omitibles (non-skippable).
+* Vectores de prueba de especificación LLP: 199 vectores oficiales que validan conformancia wire-compatible.
 
 ---
 
@@ -518,18 +529,22 @@ Todo el código, comentarios, Javadoc y nombres de variables deben escribirse en
 
 ## 📜 Licencia
 
-Licencia MIT — ver [LICENSE](https://www.google.com/search?q=LICENSE)
+Licencia MIT — ver [LICENSE](LICENSE)
+
+LLP Specification v3.1.0 — Copyright © 2026 Flamingo Communications
+
+This specification is maintained as the authoritative reference for the LLP protocol. All implementations should reference this document as the canonical behaviour definition.
 
 ---
 
 ## ✍️ Autor
 
-Creado por **flamicomm**
+Creado por **Famingo Communications**
 
 ---
 
-**Versión:** 3.0.1
+**Versión:** 3.1.0
 
-**Última actualización:** 2026-05-13
+**Última actualización:** 2026-05-17
 
 **Objetivo Java:** 21+
