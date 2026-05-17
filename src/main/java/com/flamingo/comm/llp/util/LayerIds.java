@@ -24,10 +24,16 @@ package com.flamingo.comm.llp.util;
  *             <li>Can be safely skipped if no parser is available.</li>
  *         </ul>
  *     </li>
- *     <li><b>Non-skippable Layers (ID 128–255)</b>:
+ *     <li><b>Non-skippable / Transform Layers (ID 128–254)</b>:
  *         <ul>
  *             <li>Modify the payload (e.g., encryption, compression).</li>
  *             <li>Must be parsed to correctly interpret subsequent layers.</li>
+ *         </ul>
+ *     </li>
+ *     <li><b>Reserved Layer (ID = 255)</b>:
+ *         <ul>
+ *             <li>Reserved for future use.</li>
+ *             <li>Parsers should treat as unknown and skip if possible.</li>
  *         </ul>
  *     </li>
  * </ul>
@@ -45,9 +51,15 @@ public final class LayerIds {
     static final int FINAL_LAYER_ID = 0;
 
     /**
-     * Threshold from which layers are considered non-skippable.
+     * Threshold from which layers are considered non-skippable (transform).
      */
     private static final int NON_SKIPPABLE_THRESHOLD = 128;
+
+    /**
+     * Reserved layer identifier. Per the LLP specification, parsers should
+     * treat this ID as unknown and skip if possible.
+     */
+    static final int RESERVED_LAYER_ID = 255;
 
     private LayerIds() {
         // Utility class (no instances)
@@ -76,13 +88,15 @@ public final class LayerIds {
      * <p>
      * Note: The final layer (ID = 0) is also considered non-modifying, but it is
      * excluded from this method since it has special structural semantics.
+     * The reserved ID (255) is considered skippable per the LLP specification.
      * </p>
      *
      * @param id layer identifier
-     * @return {@code true} if the layer is skippable (ID 1–127), otherwise {@code false}
+     * @return {@code true} if the layer is skippable (ID 1–127 or 255), otherwise {@code false}
      */
     public static boolean isSkippable(int id) {
-        return id > FINAL_LAYER_ID && id < NON_SKIPPABLE_THRESHOLD;
+        return (id > FINAL_LAYER_ID && id < NON_SKIPPABLE_THRESHOLD)
+                || id == RESERVED_LAYER_ID;
     }
 
     /**
@@ -91,31 +105,31 @@ public final class LayerIds {
      * <p>
      * Non-skippable layers modify the payload (e.g., encryption or compression),
      * therefore they must be successfully parsed before continuing to inner layers.
+     * The reserved ID (255) is <em>not</em> considered non-skippable per the
+     * LLP specification, which states it should be skipped if possible.
      * </p>
      *
      * @param id layer identifier
-     * @return {@code true} if the layer is non-skippable (ID ≥ 128), otherwise {@code false}
+     * @return {@code true} if the layer is non-skippable (ID 128–254), otherwise {@code false}
      */
     public static boolean isNonSkippable(int id) {
-        return id >= NON_SKIPPABLE_THRESHOLD;
+        return id >= NON_SKIPPABLE_THRESHOLD && id != RESERVED_LAYER_ID;
     }
 
     /**
-     * Checks whether the given layer ID represents a layer that does not modify payload.
+     * Checks whether the given layer ID is reserved.
      *
      * <p>
-     * This includes:
-     * <ul>
-     *     <li>Final layer (ID = 0)</li>
-     *     <li>Skippable layers (ID 1–127)</li>
-     * </ul>
+     * The reserved ID (255) is set aside for future use per the LLP specification.
+     * Parsers should treat it as unknown and skip if possible — it is not
+     * considered a transform (non-skippable) layer.
      * </p>
      *
      * @param id layer identifier
-     * @return {@code true} if the layer does not modify payload, otherwise {@code false}
+     * @return {@code true} if the layer ID is reserved (255), otherwise {@code false}
      */
-    public static boolean doesNotModifyPayload(int id) {
-        return id < NON_SKIPPABLE_THRESHOLD;
+    public static boolean isReserved(int id) {
+        return id == RESERVED_LAYER_ID;
     }
 
     /**

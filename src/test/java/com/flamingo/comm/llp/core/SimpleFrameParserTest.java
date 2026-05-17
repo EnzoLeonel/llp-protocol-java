@@ -62,7 +62,7 @@ class SimpleFrameParserTest {
         assertEquals(1234, frame.crc());
         assertEquals(1000L, frame.timestamp());
 
-        // Node chain should have exactly 1 node (FinalNode)
+        // Node chain should have exactly 1 node (FinalNode)00
         assertEquals(1, frame.chain().size());
         assertInstanceOf(FinalNode.class, frame.chain().asList().getFirst());
     }
@@ -289,8 +289,11 @@ class SimpleFrameParserTest {
 
         LLPFrame frame = parser.parse(rawFrame);
 
-        assertEquals(1, frame.chain().size());
+        assertEquals(2, frame.chain().size());
         assertEquals(mockNode, frame.chain().asList().getFirst());
+        assertInstanceOf(FailureNode.class, frame.chain().asList().get(1));
+        FailureNode fn = (FailureNode) frame.chain().asList().get(1);
+        assertEquals(CoreParseErrorReason.MISSING_FINAL_NODE, fn.getErrorReason());
     }
 
     @Test
