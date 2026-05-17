@@ -45,7 +45,12 @@ public enum CoreParseErrorReason implements ParseErrorReason {
     /**
      * A plugin threw an unexpected exception.
      */
-    PLUGIN_EXCEPTION("Layer parser threw an exception");
+    PLUGIN_EXCEPTION("Layer parser threw an exception"),
+
+    /**
+     * Layer chain ended without a FinalNode (ID 0x00).
+     */
+    MISSING_FINAL_NODE("Layer chain ended without a FinalNode");
 
     private final String reason;
 
