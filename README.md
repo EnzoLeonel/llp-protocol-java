@@ -3,7 +3,7 @@
 [![Maven Package](https://github.com/flamicomm/llp-protocol-java/actions/workflows/maven-publish.yml/badge.svg)](https://github.com/flamicomm/llp-protocol-java/actions/workflows/maven-publish.yml)
 [![Licencia: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Java 21](https://img.shields.io/badge/Java-21-blue)](https://www.oracle.com/java/)
-[![codecov](https://codecov.io/github/flamicomm/llp-protocol/graph/badge.svg?token=A6Q68GQDBJ)](https://codecov.io/github/flamicomm/llp-protocol)
+[![codecov](https://codecov.io/github/flamicomm/llp-protocol-java/graph/badge.svg?token=BNZ9MLIS2Z)](https://codecov.io/github/flamicomm/llp-protocol-java)
 
 Implementación en **Java 21** de **LLP (Layered Link Protocol)** — un protocolo de comunicación robusto, eficiente y extensible diseñado para la comunicación de dispositivos IoT. LLP está construido en torno a un modelo de cebolla en capas (layered onion model), donde cada trama puede transportar capas de protocolo opcionales sobre la capa de transporte obligatoria.
 
